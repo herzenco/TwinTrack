@@ -1,11 +1,10 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { TwinLabel, TwinPair, ActiveTimer, TrackedEvent, FeedType, FeedSide, DiaperSubtype } from '../../types';
 import { TimerDisplay } from './TimerDisplay';
-import { StatusRow } from './StatusRow';
 import { ActionButton } from './ActionButton';
 import { FeedModal } from './FeedModal';
 import { NudgeBanner } from './NudgeBanner';
-import { formatFeedDetails, formatDiaperType } from '../../utils/formatters';
+import { formatTime } from '../../utils/time';
 
 interface TwinPanelProps {
   label: TwinLabel;
@@ -17,6 +16,17 @@ interface TwinPanelProps {
   onLogDiaper: (twin: TwinLabel, subtype: DiaperSubtype) => void;
   onToggleNap: (twin: TwinLabel) => void;
   onStopTimer: (timerId: string) => void;
+}
+
+function getNextFeedTime(lastFeedTimestamp: string, intervalMinutes: number): { time: string; overdue: boolean; diffMin: number } {
+  const nextFeed = new Date(new Date(lastFeedTimestamp).getTime() + intervalMinutes * 60000);
+  const now = Date.now();
+  const diffMin = Math.round((nextFeed.getTime() - now) / 60000);
+  return {
+    time: formatTime(nextFeed.toISOString()),
+    overdue: diffMin < 0,
+    diffMin,
+  };
 }
 
 export function TwinPanel({
@@ -49,10 +59,6 @@ export function TwinPanel({
     () => events.find((e) => e.twin_label === label && e.type === 'diaper'),
     [events, label],
   );
-  const lastNap = useMemo(
-    () => events.find((e) => e.twin_label === label && e.type === 'nap'),
-    [events, label],
-  );
 
   const lastBreastSide = useMemo(() => {
     const breastFeed = events.find(
@@ -60,6 +66,11 @@ export function TwinPanel({
     );
     return breastFeed?.feed_side ?? null;
   }, [events, label]);
+
+  const nextFeed = useMemo(() => {
+    if (!lastFeed) return null;
+    return getNextFeedTime(lastFeed.timestamp, pair.feed_interval_minutes);
+  }, [lastFeed, pair.feed_interval_minutes]);
 
   const handleLogBottle = useCallback(
     (feedType: FeedType, amount: number, unit: 'oz' | 'ml') => {
@@ -75,13 +86,20 @@ export function TwinPanel({
     [label, onStartBreast],
   );
 
+  // Feed time display
+  const feedStartTime = lastFeed?.timestamp ? formatTime(lastFeed.timestamp) : null;
+  const feedEndTime = lastFeed?.duration_ms && lastFeed?.timestamp
+    ? formatTime(new Date(new Date(lastFeed.timestamp).getTime() + lastFeed.duration_ms).toISOString())
+    : feedStartTime; // For instant logs (bottle), start = end
+  const feedDurationMin = lastFeed?.duration_ms ? Math.round(lastFeed.duration_ms / 60000) : null;
+
   return (
     <div
       className="flex flex-col h-full rounded-2xl bg-bg-card/60 border overflow-hidden"
       style={{ borderColor: `${color}25` }}
     >
-      {/* Top section: Name + breast side badge + status summary */}
-      <div className="flex items-center gap-3 px-5 pt-5 pb-2">
+      {/* Header: Name + breast side badge */}
+      <div className="flex items-center gap-3 px-5 pt-4 pb-1">
         <span className="text-2xl">{emoji}</span>
         <h2 className="text-lg font-bold" style={{ color }}>
           {name}
@@ -96,82 +114,120 @@ export function TwinPanel({
         )}
       </div>
 
-      {/* Middle: Hero timer OR status card */}
-      <div className="flex-1 flex flex-col items-center justify-center px-5 py-4">
-        {feedTimer && (
-          <div className="w-full flex flex-col items-center gap-4">
-            <TimerDisplay
-              startedAt={feedTimer.started_at}
-              type="feed"
-              twinColor={color}
-              label={`Feeding${feedTimer.feed_side ? ` (${feedTimer.feed_side.charAt(0).toUpperCase()})` : ''}`}
-            />
-            <button
-              onClick={() => onStopTimer(feedTimer.id)}
-              className="w-full min-h-[72px] rounded-2xl text-lg font-bold
-                         active:scale-[0.97] transition-all text-[#0F1117]"
-              style={{ backgroundColor: color }}
-            >
-              Stop Feed
-            </button>
+      {/* Active timer hero */}
+      {hasActiveTimer && (
+        <div className="flex-shrink-0 px-5 py-4">
+          {feedTimer && (
+            <div className="w-full flex flex-col items-center gap-4">
+              <TimerDisplay
+                startedAt={feedTimer.started_at}
+                type="feed"
+                twinColor={color}
+                label={`Feeding${feedTimer.feed_side ? ` (${feedTimer.feed_side.charAt(0).toUpperCase()})` : ''}`}
+              />
+              <button
+                onClick={() => onStopTimer(feedTimer.id)}
+                className="w-full min-h-[72px] rounded-2xl text-lg font-bold
+                           active:scale-[0.97] transition-all text-[#0F1117]"
+                style={{ backgroundColor: color }}
+              >
+                Stop Feed
+              </button>
+            </div>
+          )}
+          {napTimer && (
+            <div className="w-full flex flex-col items-center gap-4">
+              <TimerDisplay
+                startedAt={napTimer.started_at}
+                type="nap"
+                twinColor={color}
+                label="Napping"
+              />
+              <button
+                onClick={() => onStopTimer(napTimer.id)}
+                className="w-full min-h-[72px] rounded-2xl text-lg font-bold
+                           active:scale-[0.97] transition-all text-[#0F1117]"
+                style={{ backgroundColor: color }}
+              >
+                Wake Up
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Status info cards */}
+      {!hasActiveTimer && (
+        <div className="px-4 py-2 flex flex-col gap-2">
+          {/* Last feed info */}
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-4 py-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Last Feed</span>
+              {lastFeed?.feed_mode && (
+                <span className="text-xs text-text-muted">
+                  {lastFeed.feed_mode === 'breast' ? '🤱 Breast' : '🍼 Bottle'}
+                  {lastFeed.feed_amount ? ` · ${lastFeed.feed_amount}${lastFeed.feed_unit}` : ''}
+                </span>
+              )}
+            </div>
+            {lastFeed ? (
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg font-bold text-text-primary font-mono">
+                  {feedStartTime}
+                  {feedDurationMin ? ` → ${feedEndTime}` : ''}
+                </span>
+                {feedDurationMin ? (
+                  <span className="text-xs text-text-muted">({feedDurationMin}min)</span>
+                ) : null}
+              </div>
+            ) : (
+              <span className="text-sm text-text-muted">No feeds yet</span>
+            )}
           </div>
-        )}
-        {napTimer && (
-          <div className="w-full flex flex-col items-center gap-4">
-            <TimerDisplay
-              startedAt={napTimer.started_at}
-              type="nap"
-              twinColor={color}
-              label="Napping"
-            />
-            <button
-              onClick={() => onStopTimer(napTimer.id)}
-              className="w-full min-h-[72px] rounded-2xl text-lg font-bold
-                         active:scale-[0.97] transition-all text-[#0F1117]"
-              style={{ backgroundColor: color }}
-            >
-              Wake Up
-            </button>
+
+          {/* Next feed */}
+          <div
+            className="rounded-xl px-4 py-3 border"
+            style={{
+              backgroundColor: nextFeed?.overdue ? 'rgba(248,113,113,0.08)' : 'rgba(74,222,128,0.05)',
+              borderColor: nextFeed?.overdue ? 'rgba(248,113,113,0.15)' : 'rgba(74,222,128,0.1)',
+            }}
+          >
+            <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Next Feed</span>
+            {nextFeed ? (
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className={`text-lg font-bold font-mono ${nextFeed.overdue ? 'text-danger' : 'text-success'}`}>
+                  {nextFeed.time}
+                </span>
+                <span className={`text-xs font-semibold ${nextFeed.overdue ? 'text-danger' : 'text-success'}`}>
+                  {nextFeed.overdue
+                    ? `${Math.abs(nextFeed.diffMin)}min overdue`
+                    : `in ${nextFeed.diffMin}min`}
+                </span>
+              </div>
+            ) : (
+              <span className="text-sm text-text-muted mt-1 block">No feeds yet</span>
+            )}
           </div>
-        )}
-        {!hasActiveTimer && (
-          <div className="w-full rounded-2xl bg-white/[0.03] border border-white/[0.06] px-5 py-4">
-            <StatusRow
-              icon="🍼"
-              label="Feed"
-              timestamp={lastFeed?.timestamp ?? null}
-              detail={
-                lastFeed
-                  ? formatFeedDetails(
-                      lastFeed.feed_mode,
-                      lastFeed.feed_amount,
-                      lastFeed.feed_unit,
-                      lastFeed.feed_type,
-                      lastFeed.feed_side,
-                      lastFeed.duration_ms,
-                    )
-                  : undefined
-              }
-            />
-            <StatusRow
-              icon="🧷"
-              label="Diaper"
-              timestamp={lastDiaper?.timestamp ?? null}
-              detail={lastDiaper ? formatDiaperType(lastDiaper.diaper_subtype) : undefined}
-            />
-            <StatusRow
-              icon="😴"
-              label="Nap"
-              timestamp={lastNap?.timestamp ?? null}
-              detail={
-                lastNap?.duration_ms
-                  ? `${Math.round(lastNap.duration_ms / 60000)}min`
-                  : undefined
-              }
-            />
+
+          {/* Last diaper */}
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-4 py-3">
+            <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Last Diaper</span>
+            {lastDiaper ? (
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-lg font-bold text-text-primary font-mono">
+                  {formatTime(lastDiaper.timestamp)}
+                </span>
+                <span className="text-xs text-text-muted capitalize">
+                  {lastDiaper.diaper_subtype ?? 'diaper'}
+                </span>
+              </div>
+            ) : (
+              <span className="text-sm text-text-muted mt-1 block">No diapers yet</span>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Nudge banners */}
       {feedTimer && (
@@ -195,8 +251,8 @@ export function TwinPanel({
         />
       )}
 
-      {/* Bottom thumb zone: Action buttons */}
-      <div className="px-4 pb-5 pt-3 flex flex-col gap-3">
+      {/* Bottom thumb zone: Action buttons — takes up remaining space */}
+      <div className="mt-auto px-3 pb-4 pt-3 flex flex-col gap-2.5">
         <ActionButton
           icon="🍼"
           label="Feed"
@@ -204,7 +260,7 @@ export function TwinPanel({
           twinColor={color}
           active={!!feedTimer}
         />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2.5">
           <ActionButton
             icon="💧"
             label="Wet"
@@ -233,7 +289,6 @@ export function TwinPanel({
           onClick={() => (napTimer ? onStopTimer(napTimer.id) : onToggleNap(label))}
           twinColor={color}
           active={!!napTimer}
-          size="compact"
         />
       </div>
 

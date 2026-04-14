@@ -20,15 +20,15 @@ export function ActionButton({
   size = 'normal',
 }: ActionButtonProps) {
   const baseClasses = `
-    flex items-center justify-center gap-2.5 rounded-2xl font-bold
-    transition-all duration-150 select-none
+    flex items-center justify-center gap-3 rounded-2xl font-bold
+    transition-all duration-150 select-none w-full
     active:scale-[0.96] active:brightness-90
     disabled:opacity-40 disabled:pointer-events-none
   `;
 
   const sizeClasses = size === 'compact'
-    ? 'min-h-[64px] px-4 text-base'
-    : 'min-h-[72px] px-5 text-lg';
+    ? 'min-h-[72px] px-4 text-base'
+    : 'min-h-[80px] px-5 text-lg';
 
   const variantClasses = (() => {
     if (active && twinColor) {
@@ -38,7 +38,7 @@ export function ActionButton({
       case 'danger':
         return 'bg-danger/15 text-danger hover:bg-danger/25';
       case 'secondary':
-        return 'bg-white/[0.06] text-text-secondary hover:bg-white/10';
+        return 'bg-white/[0.06] text-text-primary hover:bg-white/10 border border-white/[0.08]';
       default:
         return 'bg-white/[0.08] text-text-primary hover:bg-white/12';
     }
@@ -53,11 +53,11 @@ export function ActionButton({
         active && twinColor
           ? { backgroundColor: twinColor }
           : twinColor && variant === 'primary'
-            ? { borderColor: `${twinColor}33`, borderWidth: '1px' }
+            ? { borderColor: `${twinColor}40`, borderWidth: '2px' }
             : undefined
       }
     >
-      <span className="text-xl">{icon}</span>
+      <span className="text-2xl">{icon}</span>
       <span>{label}</span>
     </button>
   );
