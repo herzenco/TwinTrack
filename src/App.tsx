@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import { useTwinPair } from './hooks/useTwinPair';
 import { BottomNav } from './components/shared/BottomNav';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { SignupScreen } from './components/auth/SignupScreen';
@@ -11,14 +12,23 @@ import { UndoToast } from './components/home/UndoToast';
 
 function AuthenticatedApp() {
   const { profile } = useAuth();
+  const { pair, loading: pairLoading } = useTwinPair();
 
   if (!profile?.active_pair_id) {
     return <OnboardingFlow />;
   }
 
+  if (pairLoading || !pair) {
+    return (
+      <div className="flex items-center justify-center h-dvh bg-bg-primary">
+        <div className="text-text-secondary text-lg">Loading your twins...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-dvh bg-bg-primary">
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="flex-1 overflow-y-auto pb-24">
         <Routes>
           <Route path="/" element={<HomeScreen />} />
           <Route path="/dashboard" element={<DashboardView />} />

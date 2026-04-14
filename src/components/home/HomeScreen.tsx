@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { TwinPanel } from './TwinPanel';
 import type { TwinLabel, FeedType, FeedSide, DiaperSubtype } from '../../types';
@@ -12,6 +12,41 @@ export function HomeScreen() {
   const addTimer = useAppStore((s) => s.addTimer);
   const user = useAppStore((s) => s.user);
   const profile = useAppStore((s) => s.profile);
+
+  const [activeTwin, setActiveTwin] = useState<TwinLabel>('A');
+  const touchStartX = useRef(0);
+  const touchDeltaX = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Swipe gesture handling for mobile twin switching
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchDeltaX.current = 0;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    const threshold = 60;
+    if (touchDeltaX.current < -threshold && activeTwin === 'A') {
+      setActiveTwin('B');
+    } else if (touchDeltaX.current > threshold && activeTwin === 'B') {
+      setActiveTwin('A');
+    }
+    touchDeltaX.current = 0;
+  }, [activeTwin]);
+
+  // Keyboard accessibility
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'ArrowLeft') setActiveTwin('A');
+      if (e.key === 'ArrowRight') setActiveTwin('B');
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleLogBottle = useCallback(
     (twin: TwinLabel, feedType: FeedType, amount: number, unit: 'oz' | 'ml') => {
@@ -156,11 +191,67 @@ export function HomeScreen() {
     );
   }
 
+  const twinAColor = pair.twin_a_color;
+  const twinBColor = pair.twin_b_color;
+
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Split screen: side by side on >=380px, stacked on narrow */}
-      <div className="flex-1 flex flex-col min-[380px]:flex-row gap-2 p-2 min-h-0 overflow-y-auto">
-        <div className="flex-1 min-h-0 min-[380px]:max-w-[50%]">
+      {/* Twin selector tabs — mobile: swipe between, tablet+: both visible */}
+      <div className="flex gap-2 px-3 pt-3 pb-1 md:hidden">
+        <button
+          onClick={() => setActiveTwin('A')}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-2xl font-bold text-base
+                      transition-all duration-200 min-h-[52px]
+                      ${activeTwin === 'A' ? 'text-[#0F1117]' : 'bg-white/5 text-text-secondary'}`}
+          style={activeTwin === 'A' ? { backgroundColor: twinAColor } : undefined}
+        >
+          <span className="text-lg">{pair.twin_a_emoji}</span>
+          <span>{pair.twin_a_name}</span>
+          {timers.some((t) => t.twin_label === 'A') && (
+            <span className="w-2 h-2 rounded-full bg-white/80 animate-pulse" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTwin('B')}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-2xl font-bold text-base
+                      transition-all duration-200 min-h-[52px]
+                      ${activeTwin === 'B' ? 'text-[#0F1117]' : 'bg-white/5 text-text-secondary'}`}
+          style={activeTwin === 'B' ? { backgroundColor: twinBColor } : undefined}
+        >
+          <span className="text-lg">{pair.twin_b_emoji}</span>
+          <span>{pair.twin_b_name}</span>
+          {timers.some((t) => t.twin_label === 'B') && (
+            <span className="w-2 h-2 rounded-full bg-white/80 animate-pulse" />
+          )}
+        </button>
+      </div>
+
+      {/* Mobile: single panel with swipe */}
+      <div
+        ref={containerRef}
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden md:hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="p-3 h-full">
+          <TwinPanel
+            label={activeTwin}
+            pair={pair}
+            timers={timers}
+            events={events}
+            onLogBottle={handleLogBottle}
+            onStartBreast={handleStartBreast}
+            onLogDiaper={handleLogDiaper}
+            onToggleNap={handleToggleNap}
+            onStopTimer={handleStopTimer}
+          />
+        </div>
+      </div>
+
+      {/* Tablet+: side by side */}
+      <div className="hidden md:flex flex-1 min-h-0 gap-3 p-3 overflow-y-auto">
+        <div className="flex-1 min-h-0">
           <TwinPanel
             label="A"
             pair={pair}
@@ -173,7 +264,7 @@ export function HomeScreen() {
             onStopTimer={handleStopTimer}
           />
         </div>
-        <div className="flex-1 min-h-0 min-[380px]:max-w-[50%]">
+        <div className="flex-1 min-h-0">
           <TwinPanel
             label="B"
             pair={pair}

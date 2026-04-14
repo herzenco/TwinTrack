@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { createTwinPair, redeemInvite } from '../../lib/database';
+import { signOut } from '../../lib/auth';
+import { useAppStore } from '../../store/appStore';
+import { useAuth } from '../../hooks/useAuth';
 
 type OnboardingStep = 'choose' | 'create' | 'join';
 
@@ -6,6 +10,8 @@ const COLOR_OPTIONS = ['#6C9BFF', '#FF8FA4', '#4ADE80', '#FBBF24', '#A78BFA', '#
 
 export function OnboardingFlow() {
   const [step, setStep] = useState<OnboardingStep>('choose');
+  const { user, profile, refreshProfile } = useAuth();
+  const setActivePair = useAppStore((s) => s.setActivePair);
 
   // Create pair state
   const [nameA, setNameA] = useState('');
@@ -24,10 +30,19 @@ export function OnboardingFlow() {
     setError(null);
     setLoading(true);
     try {
-      // TODO: call lib/database.ts to create twin pair + pair_member
-      // Then update appStore with the new pair
-    } catch {
-      setError('Failed to create twin pair');
+      const pair = await createTwinPair({
+        twin_a_name: nameA || 'Baby A',
+        twin_b_name: nameB || 'Baby B',
+        twin_a_color: colorA,
+        twin_b_color: colorB,
+        feed_interval_minutes: feedInterval,
+      });
+      setActivePair(pair);
+      await refreshProfile();
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? String(err);
+      console.error('Create pair error:', err);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -39,11 +54,16 @@ export function OnboardingFlow() {
       setError('Enter a 6-character invite code');
       return;
     }
+    if (!user || !profile) {
+      setError('Not logged in');
+      return;
+    }
     setLoading(true);
     try {
-      // TODO: call redeem_invite RPC via lib/database.ts
-    } catch {
-      setError('Invalid or expired invite code');
+      await redeemInvite(inviteCode, profile.display_name);
+      await refreshProfile();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid or expired invite code');
     } finally {
       setLoading(false);
     }
@@ -62,6 +82,16 @@ export function OnboardingFlow() {
             {step === 'create' && 'Set up your twin pair'}
             {step === 'join' && 'Join an existing pair'}
           </p>
+          <button
+            onClick={async () => {
+              await signOut();
+              localStorage.clear();
+              window.location.reload();
+            }}
+            className="text-xs text-text-muted mt-3 underline"
+          >
+            Sign out &amp; start fresh
+          </button>
         </div>
 
         {/* Error */}
@@ -229,7 +259,6 @@ export function OnboardingFlow() {
                     const newCode = inviteCode.split('');
                     newCode[i] = val;
                     setInviteCode(newCode.join(''));
-                    // Auto-focus next
                     if (val && e.target.nextElementSibling) {
                       (e.target.nextElementSibling as HTMLInputElement).focus();
                     }

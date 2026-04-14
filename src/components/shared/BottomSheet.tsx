@@ -69,7 +69,7 @@ export function BottomSheet({ open, onClose, children, title }: BottomSheetProps
       {/* Sheet */}
       <div
         ref={sheetRef}
-        className="relative z-10 w-full max-h-[85dvh] bg-bg-modal rounded-t-2xl
+        className="relative z-10 w-full max-h-[85dvh] bg-bg-modal rounded-t-3xl
                    animate-slide-up transition-transform duration-200 ease-out
                    overflow-y-auto overscroll-contain"
         onTouchStart={handleTouchStart}
@@ -77,17 +77,17 @@ export function BottomSheet({ open, onClose, children, title }: BottomSheetProps
         onTouchEnd={handleTouchEnd}
       >
         {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-text-muted/40" />
+        <div className="flex justify-center pt-3 pb-2">
+          <div className="w-12 h-1.5 rounded-full bg-text-muted/40" />
         </div>
 
         {title && (
-          <div className="px-5 pb-3 pt-1">
-            <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+          <div className="px-5 pb-4 pt-1">
+            <h2 className="text-xl font-bold text-text-primary">{title}</h2>
           </div>
         )}
 
-        <div className="px-5 pb-8">
+        <div className="px-5 pb-10" style={{ paddingBottom: `max(2.5rem, env(safe-area-inset-bottom, 2.5rem))` }}>
           {children}
         </div>
       </div>

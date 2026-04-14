@@ -22,21 +22,25 @@ export function TimerDisplay({ startedAt, type, twinColor, label }: TimerDisplay
   const timeString = formatDuration(elapsed);
 
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-2 w-full">
       {label && (
-        <span className="text-xs font-medium text-text-secondary">{typeIcon} {label}</span>
+        <span className="text-sm font-semibold text-text-secondary tracking-wide uppercase">
+          {typeIcon} {label}
+        </span>
       )}
-      <div
-        className="relative flex items-center justify-center"
-      >
-        {/* Pulsing glow ring */}
+      <div className="relative flex items-center justify-center w-full py-4">
+        {/* Large pulsing glow */}
         <div
-          className="absolute inset-0 rounded-xl opacity-30 animate-pulse blur-md"
+          className="absolute inset-x-4 inset-y-0 rounded-2xl opacity-25 animate-pulse blur-xl"
+          style={{ backgroundColor: twinColor }}
+        />
+        <div
+          className="absolute inset-x-8 inset-y-2 rounded-2xl opacity-15 animate-pulse blur-md"
           style={{ backgroundColor: twinColor }}
         />
         <span
-          className="relative font-mono text-3xl font-bold tracking-wider px-4 py-2
-                     rounded-xl border border-white/10"
+          className="relative font-mono text-5xl md:text-4xl font-bold tracking-wider
+                     px-6 py-4 rounded-2xl border border-white/10"
           style={{ color: twinColor }}
         >
           {timeString}
