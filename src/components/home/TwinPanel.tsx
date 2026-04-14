@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import type { TwinLabel, TwinPair, ActiveTimer, TrackedEvent, FeedType, FeedSide, DiaperSubtype } from '../../types';
 import { TimerDisplay } from './TimerDisplay';
 import { ActionButton } from './ActionButton';
@@ -15,7 +15,7 @@ interface TwinPanelProps {
   onStartBreast: (twin: TwinLabel, side: FeedSide) => void;
   onLogDiaper: (twin: TwinLabel, subtype: DiaperSubtype) => void;
   onToggleNap: (twin: TwinLabel) => void;
-  onStopTimer: (timerId: string) => void;
+  onStopTimer: (timerId: string, pausedMs?: number) => void;
 }
 
 function getNextFeedTime(lastFeedTimestamp: string, intervalMinutes: number): { time: string; overdue: boolean; diffMin: number } {
@@ -41,6 +41,7 @@ export function TwinPanel({
   onStopTimer,
 }: TwinPanelProps) {
   const [feedModalOpen, setFeedModalOpen] = useState(false);
+  const feedPausedMsRef = useRef(0);
 
   const isA = label === 'A';
   const name = isA ? pair.twin_a_name : pair.twin_b_name;
@@ -124,9 +125,10 @@ export function TwinPanel({
                 type="feed"
                 twinColor={color}
                 label={`Feeding${feedTimer.feed_side ? ` (${feedTimer.feed_side.charAt(0).toUpperCase()})` : ''}`}
+                onPausedTimeChange={(ms) => { feedPausedMsRef.current = ms; }}
               />
               <button
-                onClick={() => onStopTimer(feedTimer.id)}
+                onClick={() => onStopTimer(feedTimer.id, feedPausedMsRef.current)}
                 className="w-full min-h-[72px] rounded-2xl text-lg font-bold
                            active:scale-[0.97] transition-all text-[#0F1117]"
                 style={{ backgroundColor: color }}
