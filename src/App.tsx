@@ -1,10 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import { useTwinPair } from './hooks/useTwinPair';
+import { useInviteRedemption } from './hooks/useInviteRedemption';
 import { BottomNav } from './components/shared/BottomNav';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { SignupScreen } from './components/auth/SignupScreen';
 import { OnboardingFlow } from './components/auth/OnboardingFlow';
+import { JoinInvitePage } from './components/auth/JoinInvitePage';
 import { HomeScreen } from './components/home/HomeScreen';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { SettingsView } from './components/settings/SettingsView';
@@ -13,6 +15,27 @@ import { UndoToast } from './components/home/UndoToast';
 function AuthenticatedApp() {
   const { profile } = useAuth();
   const { pair, loading: pairLoading } = useTwinPair();
+  const { redeeming } = useInviteRedemption();
+  const location = useLocation();
+
+  const isJoinRoute = location.pathname.startsWith('/join/');
+
+  // Let /join/:code through even without a pair
+  if (isJoinRoute) {
+    return (
+      <Routes>
+        <Route path="/join/:code" element={<JoinInvitePage />} />
+      </Routes>
+    );
+  }
+
+  if (redeeming) {
+    return (
+      <div className="flex items-center justify-center h-dvh bg-bg-primary">
+        <div className="text-text-secondary text-lg">Joining twin pair...</div>
+      </div>
+    );
+  }
 
   if (!profile?.active_pair_id) {
     return <OnboardingFlow />;
@@ -60,6 +83,7 @@ export default function App() {
           <>
             <Route path="/login" element={<LoginScreen />} />
             <Route path="/signup" element={<SignupScreen />} />
+            <Route path="/join/:code" element={<JoinInvitePage />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </>
         ) : (

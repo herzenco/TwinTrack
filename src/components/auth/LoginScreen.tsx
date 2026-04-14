@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { signIn } from '../../lib/auth';
 
 export function LoginScreen() {
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get('invite');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,6 +24,8 @@ export function LoginScreen() {
     }
   }
 
+  const signupLink = inviteCode ? `/signup?invite=${inviteCode}` : '/signup';
+
   return (
     <div className="flex flex-col items-center justify-center min-h-dvh bg-bg-primary px-6">
       <div className="w-full max-w-sm flex flex-col gap-8">
@@ -32,6 +37,12 @@ export function LoginScreen() {
             Track your twins, together.
           </p>
         </div>
+
+        {inviteCode && (
+          <div className="bg-twin-a/10 border border-twin-a/20 rounded-xl px-4 py-3 text-sm text-twin-a text-center">
+            Sign in to join a twin pair
+          </div>
+        )}
 
         {error && (
           <div className="bg-danger/10 border border-danger/20 rounded-xl px-4 py-3 text-sm text-danger">
@@ -75,7 +86,7 @@ export function LoginScreen() {
 
         <p className="text-center text-sm text-text-muted">
           Don't have an account?{' '}
-          <Link to="/signup" className="text-twin-a font-medium hover:underline">
+          <Link to={signupLink} className="text-twin-a font-medium hover:underline">
             Sign up
           </Link>
         </p>

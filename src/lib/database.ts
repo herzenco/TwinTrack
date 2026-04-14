@@ -287,9 +287,29 @@ export async function stopTimerAndCreateEvent(
 // ---------------------------------------------------------------------------
 
 export async function createInvite(pairId: string): Promise<Invite> {
-  const { data, error } = await supabase.functions.invoke('generate-invite', {
-    body: { pair_id: pairId },
-  });
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  const array = new Uint8Array(6);
+  crypto.getRandomValues(array);
+  for (let i = 0; i < 6; i++) {
+    code += chars[array[i] % chars.length];
+  }
+
+  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('invites')
+    .insert({
+      pair_id: pairId,
+      code,
+      created_by: userData.user.id,
+      expires_at: expiresAt,
+    })
+    .select()
+    .single();
 
   if (error) throw error;
   return data as Invite;

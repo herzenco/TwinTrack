@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAppStore } from '../../store/appStore';
+import { createInvite } from '../../lib/database';
 import { TwinConfig } from './TwinConfig';
 import { MemberManagement } from './MemberManagement';
 import { InviteCode } from './InviteCode';
@@ -38,11 +39,9 @@ export function SettingsView() {
   }
 
   async function handleGenerateInvite(): Promise<{ code: string; expires_at: string }> {
-    // TODO: call Edge Function to generate invite
-    // Placeholder for now
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const expires = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-    return { code, expires_at: expires };
+    if (!pair) throw new Error('No active pair');
+    const invite = await createInvite(pair.id);
+    return { code: invite.code, expires_at: invite.expires_at };
   }
 
   if (!pair) {
