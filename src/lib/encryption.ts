@@ -79,7 +79,7 @@ export async function deriveKey(
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt,
+      salt: salt as BufferSource,
       iterations: PBKDF2_ITERATIONS,
       hash: 'SHA-256',
     },

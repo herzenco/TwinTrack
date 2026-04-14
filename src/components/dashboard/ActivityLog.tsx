@@ -9,7 +9,6 @@ interface ActivityLogProps {
   caregivers: string[];
 }
 
-type SortField = 'timestamp';
 type SortDir = 'asc' | 'desc';
 
 export function ActivityLog({ events, pair, caregivers }: ActivityLogProps) {
