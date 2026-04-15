@@ -140,6 +140,7 @@ export function HomeScreen() {
   const handleStopTimer = useCallback(
     async (timerId: string, _pausedMs?: number, segments?: FeedSegment[]) => {
       const timer = timers.find((t) => t.id === timerId);
+      console.log('[handleStopTimer] timerId:', timerId, 'found:', !!timer, 'total timers:', timers.length);
       if (!timer) return;
 
       try {
