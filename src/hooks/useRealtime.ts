@@ -57,7 +57,11 @@ export function useRealtime() {
         },
         (payload) => {
           const timer = payload.new as ActiveTimer;
-          addTimer(timer);
+          // Avoid duplicates from our own inserts
+          const { activeTimers } = useAppStore.getState();
+          if (!activeTimers.some((t) => t.id === timer.id)) {
+            addTimer(timer);
+          }
         }
       )
       .on(
