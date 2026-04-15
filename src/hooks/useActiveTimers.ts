@@ -120,7 +120,8 @@ export function useActiveTimers() {
       } catch (err) {
         console.error('[stopTimer] RPC failed:', err);
         const { setSyncError } = useAppStore.getState();
-        setSyncError('Failed to save timer. Check your connection and try again.');
+        const msg = err instanceof Error ? err.message : typeof err === 'object' && err !== null && 'message' in err ? String((err as Record<string, unknown>).message) : String(err);
+        setSyncError(`Stop failed: ${msg}`);
         throw err;
       }
     },
