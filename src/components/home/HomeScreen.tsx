@@ -4,6 +4,7 @@ import { useEvents } from '../../hooks/useEvents';
 import { useActiveTimers } from '../../hooks/useActiveTimers';
 import { TwinPanel } from './TwinPanel';
 import { TandemFeedView } from './TandemFeedView';
+import { ActiveNowBar } from './ActiveNowBar';
 import { BottomSheet } from '../shared/BottomSheet';
 import type { TwinLabel, FeedType, FeedSide, FeedSegment, DiaperSubtype, FeedUnit } from '../../types';
 
@@ -182,8 +183,20 @@ export function HomeScreen() {
   // Check if either twin already has a feed timer (can't start tandem)
   const anyFeedTimerActive = !!feedTimerA || !!feedTimerB;
 
+  // Timers for the twin NOT currently shown on mobile
+  const otherTwinTimers = timers.filter((t) => t.twin_label !== activeTwin);
+
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* Active timers on the other twin (mobile only) */}
+      <div className="md:hidden">
+        <ActiveNowBar
+          timers={otherTwinTimers}
+          pair={pair}
+          onTapTimer={(label) => setActiveTwin(label)}
+        />
+      </div>
+
       {/* Tandem feed button — only when no feed timers are running */}
       {!anyFeedTimerActive && (
         <div className="px-3 pt-3 md:hidden">
