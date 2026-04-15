@@ -15,6 +15,7 @@ import { DashboardView } from './components/dashboard/DashboardView';
 import { SettingsView } from './components/settings/SettingsView';
 import { UndoToast } from './components/home/UndoToast';
 import { SyncErrorBanner } from './components/shared/SyncErrorBanner';
+import { UpdatePrompt } from './components/shared/UpdatePrompt';
 
 function AuthenticatedApp() {
   const { profile } = useAuth();
@@ -88,6 +89,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <UpdatePrompt />
       <Routes>
         {!user ? (
           <>
