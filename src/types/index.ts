@@ -7,6 +7,11 @@ export type FeedSide = 'left' | 'right' | 'both';
 export type DiaperSubtype = 'wet' | 'dirty' | 'both';
 export type PairRole = 'owner' | 'caregiver';
 
+export interface FeedSegment {
+  side: FeedSide;
+  duration_ms: number;
+}
+
 export interface TwinPair {
   id: string;
   created_by: string;
@@ -48,6 +53,7 @@ export interface TrackedEvent {
   feed_unit: FeedUnit | null;
   feed_type: FeedType | null;
   feed_side: FeedSide | null;
+  feed_segments: FeedSegment[] | null;
   duration_ms: number | null;
   diaper_subtype: DiaperSubtype | null;
   nap_start: string | null;

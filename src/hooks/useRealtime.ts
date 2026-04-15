@@ -63,6 +63,20 @@ export function useRealtime() {
       .on(
         'postgres_changes',
         {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'active_timers',
+          filter: `pair_id=eq.${pairId}`,
+        },
+        (payload) => {
+          const timer = payload.new as ActiveTimer;
+          const { updateTimer } = useAppStore.getState();
+          updateTimer(timer.id, timer);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
           event: 'DELETE',
           schema: 'public',
           table: 'active_timers',

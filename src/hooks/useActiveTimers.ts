@@ -4,10 +4,11 @@ import {
   getActiveTimers,
   createTimer,
   stopTimerAndCreateEvent,
+  updateTimerSide,
   type CreateTimerParams,
   type StopTimerParams,
 } from '../lib/database';
-import type { ActiveTimer, TwinLabel, FeedSide, FeedMode, FeedUnit, FeedType } from '../types';
+import type { ActiveTimer, TwinLabel, FeedSide, FeedMode, FeedUnit, FeedType, FeedSegment } from '../types';
 
 export function useActiveTimers() {
   const {
@@ -18,7 +19,9 @@ export function useActiveTimers() {
     setActiveTimers,
     addTimer,
     removeTimer,
+    updateTimer,
     addEvent,
+    setUndoEvent,
   } = useAppStore();
 
   const [loading, setLoading] = useState(false);
@@ -81,6 +84,7 @@ export function useActiveTimers() {
         feed_unit?: FeedUnit;
         feed_type?: FeedType;
         note_text?: string;
+        feed_segments?: FeedSegment[];
       } = {}
     ) => {
       const params: StopTimerParams = {
@@ -90,6 +94,7 @@ export function useActiveTimers() {
         feed_unit: opts.feed_unit ?? null,
         feed_type: opts.feed_type ?? null,
         note_text: opts.note_text ?? null,
+        feed_segments: opts.feed_segments ?? null,
       };
 
       const event = await stopTimerAndCreateEvent(params);
@@ -99,10 +104,24 @@ export function useActiveTimers() {
 
       // Add the resulting event to the store
       addEvent(event);
+      setUndoEvent(event);
 
       return event;
     },
-    [removeTimer, addEvent]
+    [removeTimer, addEvent, setUndoEvent]
+  );
+
+  const switchSide = useCallback(
+    async (timerId: string, newSide: FeedSide) => {
+      // Optimistically update local state
+      updateTimer(timerId, { feed_side: newSide });
+      try {
+        await updateTimerSide(timerId, newSide);
+      } catch {
+        // Revert on failure — the real-time channel will correct eventually
+      }
+    },
+    [updateTimer]
   );
 
   const getTimerForTwin = useCallback(
@@ -125,6 +144,7 @@ export function useActiveTimers() {
     loading,
     startTimer,
     stopTimer,
+    switchSide,
     getTimerForTwin,
     refreshTimers,
   };

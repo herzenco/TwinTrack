@@ -8,6 +8,7 @@ interface FeedModalProps {
   twinLabel: TwinLabel;
   twinName: string;
   twinColor: string;
+  lastBreastSide: FeedSide | null;
   onLogBottle: (feedType: FeedType, amount: number, unit: 'oz' | 'ml') => void;
   onStartBreast: (side: FeedSide) => void;
 }
@@ -19,6 +20,7 @@ export function FeedModal({
   onClose,
   twinName,
   twinColor,
+  lastBreastSide,
   onLogBottle,
   onStartBreast,
 }: FeedModalProps) {
@@ -182,39 +184,65 @@ export function FeedModal({
       )}
 
       {/* Breast flow */}
-      {mode === 'breast' && (
-        <div className="flex flex-col gap-5">
-          <button
-            onClick={() => setMode(null)}
-            className="self-start text-sm text-text-muted hover:text-text-secondary transition-colors
-                       min-h-[44px] flex items-center"
-          >
-            &larr; Back
-          </button>
+      {mode === 'breast' && (() => {
+        const suggestedSide: FeedSide | null =
+          lastBreastSide === 'left' ? 'right'
+          : lastBreastSide === 'right' ? 'left'
+          : null;
 
-          <p className="text-sm font-medium text-text-secondary">Choose side to start timer</p>
+        return (
+          <div className="flex flex-col gap-5">
+            <button
+              onClick={() => setMode(null)}
+              className="self-start text-sm text-text-muted hover:text-text-secondary transition-colors
+                         min-h-[44px] flex items-center"
+            >
+              &larr; Back
+            </button>
 
-          <div className="flex flex-col gap-3">
-            {([
-              { side: 'left' as FeedSide, label: 'Left', icon: '👈' },
-              { side: 'right' as FeedSide, label: 'Right', icon: '👉' },
-              { side: 'both' as FeedSide, label: 'Both', icon: '🤲' },
-            ]).map(({ side, label, icon }) => (
-              <button
-                key={side}
-                onClick={() => handleStartBreast(side)}
-                className="flex items-center justify-center gap-3 min-h-[64px] rounded-2xl
-                           text-base font-bold bg-white/5 text-text-primary
-                           hover:bg-white/10 active:scale-[0.98] transition-all"
-                style={{ borderColor: `${twinColor}33`, borderWidth: '1px' }}
-              >
-                <span className="text-xl">{icon}</span>
-                <span>{label}</span>
-              </button>
-            ))}
+            <p className="text-sm font-medium text-text-secondary">
+              Choose side to start timer
+              {lastBreastSide && (
+                <span className="ml-1 text-text-muted">
+                  (last finished on {lastBreastSide === 'left' ? 'L' : lastBreastSide === 'right' ? 'R' : 'Both'})
+                </span>
+              )}
+            </p>
+
+            <div className="flex flex-col gap-3">
+              {([
+                { side: 'left' as FeedSide, label: 'Left', icon: '👈' },
+                { side: 'right' as FeedSide, label: 'Right', icon: '👉' },
+                { side: 'both' as FeedSide, label: 'Both', icon: '🤲' },
+              ]).map(({ side, label, icon }) => {
+                const isSuggested = side === suggestedSide;
+                return (
+                  <button
+                    key={side}
+                    onClick={() => handleStartBreast(side)}
+                    className={`flex items-center justify-center gap-3 min-h-[64px] rounded-2xl
+                               text-base font-bold active:scale-[0.98] transition-all
+                               ${isSuggested
+                                 ? 'text-[#0F1117]'
+                                 : 'bg-white/5 text-text-primary hover:bg-white/10'
+                               }`}
+                    style={isSuggested
+                      ? { backgroundColor: twinColor }
+                      : { borderColor: `${twinColor}33`, borderWidth: '1px' }
+                    }
+                  >
+                    <span className="text-xl">{icon}</span>
+                    <span>{label}</span>
+                    {isSuggested && (
+                      <span className="text-xs font-semibold opacity-70 ml-1">Suggested</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </BottomSheet>
   );
 }

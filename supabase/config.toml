@@ -1,9 +1,6 @@
 # supabase/config.toml
 # TwinTrack - Supabase local development configuration
 
-[project]
-id = "twintrack-local"
-
 [api]
 enabled = true
 port = 54321

@@ -121,6 +121,7 @@ export function useEvents() {
         feed_unit: params.feed_unit ?? null,
         feed_type: params.feed_type ?? null,
         feed_side: params.feed_side ?? null,
+        feed_segments: null,
         duration_ms: params.duration_ms ?? null,
         diaper_subtype: params.diaper_subtype ?? null,
         nap_start: params.nap_start ?? null,
@@ -184,6 +185,7 @@ export function useEvents() {
         feed_type?: FeedType;
         feed_side?: FeedSide;
         duration_ms?: number;
+        timestamp?: string;
       } = {}
     ) => {
       if (!activePair) throw new Error('No active pair');
@@ -191,6 +193,7 @@ export function useEvents() {
         pair_id: activePair.id,
         twin_label: twinLabel,
         type: 'feed',
+        timestamp: opts.timestamp,
         feed_mode: feedMode,
         feed_amount: opts.feed_amount ?? null,
         feed_unit: opts.feed_unit ?? null,
@@ -203,12 +206,13 @@ export function useEvents() {
   );
 
   const logDiaper = useCallback(
-    (twinLabel: TwinLabel, subtype: DiaperSubtype) => {
+    (twinLabel: TwinLabel, subtype: DiaperSubtype, timestamp?: string) => {
       if (!activePair) throw new Error('No active pair');
       return logEventOptimistic({
         pair_id: activePair.id,
         twin_label: twinLabel,
         type: 'diaper',
+        timestamp,
         diaper_subtype: subtype,
       });
     },
@@ -227,6 +231,7 @@ export function useEvents() {
         pair_id: activePair.id,
         twin_label: twinLabel,
         type: 'nap',
+        timestamp: napStart,
         nap_start: napStart,
         nap_end: napEnd,
         duration_ms: durationMs,
