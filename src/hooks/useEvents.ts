@@ -155,6 +155,8 @@ export function useEvents() {
       } catch (err) {
         // Rollback optimistic update
         removeEvent(tempId);
+        const { setSyncError } = useAppStore.getState();
+        setSyncError(`Failed to save ${params.type}. Check your connection and try again.`);
         throw err;
       }
     },

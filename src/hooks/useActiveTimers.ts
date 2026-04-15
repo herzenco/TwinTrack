@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '../store/appStore';
+
 import {
   getActiveTimers,
   createTimer,
@@ -68,9 +69,15 @@ export function useActiveTimers() {
         feed_side: feedSide ?? null,
       };
 
-      const timer = await createTimer(params);
-      addTimer(timer);
-      return timer;
+      try {
+        const timer = await createTimer(params);
+        addTimer(timer);
+        return timer;
+      } catch (err) {
+        const { setSyncError } = useAppStore.getState();
+        setSyncError(`Failed to start ${type} timer. Check your connection and try again.`);
+        throw err;
+      }
     },
     [activePair, user, profile, addTimer]
   );
@@ -83,32 +90,38 @@ export function useActiveTimers() {
         feed_amount?: number;
         feed_unit?: FeedUnit;
         feed_type?: FeedType;
-        note_text?: string;
         feed_segments?: FeedSegment[];
       } = {}
     ) => {
+      const name = profile?.display_name ?? user?.email ?? 'Unknown';
       const params: StopTimerParams = {
         timer_id: timerId,
+        logged_by_name: name,
         feed_mode: opts.feed_mode ?? null,
         feed_amount: opts.feed_amount ?? null,
         feed_unit: opts.feed_unit ?? null,
         feed_type: opts.feed_type ?? null,
-        note_text: opts.note_text ?? null,
         feed_segments: opts.feed_segments ?? null,
       };
 
-      const event = await stopTimerAndCreateEvent(params);
+      try {
+        const event = await stopTimerAndCreateEvent(params);
 
-      // Remove the timer from local state
-      removeTimer(timerId);
+        // Remove the timer from local state
+        removeTimer(timerId);
 
-      // Add the resulting event to the store
-      addEvent(event);
-      setUndoEvent(event);
+        // Add the resulting event to the store
+        addEvent(event);
+        setUndoEvent(event);
 
-      return event;
+        return event;
+      } catch (err) {
+        const { setSyncError } = useAppStore.getState();
+        setSyncError('Failed to save timer. Check your connection and try again.');
+        throw err;
+      }
     },
-    [removeTimer, addEvent, setUndoEvent]
+    [user, profile, removeTimer, addEvent, setUndoEvent]
   );
 
   const switchSide = useCallback(

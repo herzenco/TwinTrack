@@ -14,6 +14,8 @@ import { HomeScreen } from './components/home/HomeScreen';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { SettingsView } from './components/settings/SettingsView';
 import { UndoToast } from './components/home/UndoToast';
+import { SyncErrorBanner } from './components/shared/SyncErrorBanner';
+import { UpdatePrompt } from './components/shared/UpdatePrompt';
 
 function AuthenticatedApp() {
   const { profile } = useAuth();
@@ -69,6 +71,7 @@ function AuthenticatedApp() {
       </main>
       <BottomNav />
       <UndoToast />
+      <SyncErrorBanner />
     </div>
   );
 }
@@ -86,6 +89,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <UpdatePrompt />
       <Routes>
         {!user ? (
           <>

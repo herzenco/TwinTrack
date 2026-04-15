@@ -30,6 +30,10 @@ interface AppState {
   // UI
   undoEvent: TrackedEvent | null;
   setUndoEvent: (event: TrackedEvent | null) => void;
+
+  // Sync errors
+  syncError: string | null;
+  setSyncError: (error: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -74,4 +78,8 @@ export const useAppStore = create<AppState>((set) => ({
   // UI
   undoEvent: null,
   setUndoEvent: (undoEvent) => set({ undoEvent }),
+
+  // Sync errors
+  syncError: null,
+  setSyncError: (syncError) => set({ syncError }),
 }));
