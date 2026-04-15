@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useAppStore } from '../store/appStore';
+
 import {
   getActiveTimers,
   createTimer,
@@ -68,9 +69,15 @@ export function useActiveTimers() {
         feed_side: feedSide ?? null,
       };
 
-      const timer = await createTimer(params);
-      addTimer(timer);
-      return timer;
+      try {
+        const timer = await createTimer(params);
+        addTimer(timer);
+        return timer;
+      } catch (err) {
+        const { setSyncError } = useAppStore.getState();
+        setSyncError(`Failed to start ${type} timer. Check your connection and try again.`);
+        throw err;
+      }
     },
     [activePair, user, profile, addTimer]
   );
@@ -97,16 +104,22 @@ export function useActiveTimers() {
         feed_segments: opts.feed_segments ?? null,
       };
 
-      const event = await stopTimerAndCreateEvent(params);
+      try {
+        const event = await stopTimerAndCreateEvent(params);
 
-      // Remove the timer from local state
-      removeTimer(timerId);
+        // Remove the timer from local state
+        removeTimer(timerId);
 
-      // Add the resulting event to the store
-      addEvent(event);
-      setUndoEvent(event);
+        // Add the resulting event to the store
+        addEvent(event);
+        setUndoEvent(event);
 
-      return event;
+        return event;
+      } catch (err) {
+        const { setSyncError } = useAppStore.getState();
+        setSyncError('Failed to save timer. Check your connection and try again.');
+        throw err;
+      }
     },
     [removeTimer, addEvent, setUndoEvent]
   );

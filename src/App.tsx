@@ -14,6 +14,7 @@ import { HomeScreen } from './components/home/HomeScreen';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { SettingsView } from './components/settings/SettingsView';
 import { UndoToast } from './components/home/UndoToast';
+import { SyncErrorBanner } from './components/shared/SyncErrorBanner';
 
 function AuthenticatedApp() {
   const { profile } = useAuth();
@@ -69,6 +70,7 @@ function AuthenticatedApp() {
       </main>
       <BottomNav />
       <UndoToast />
+      <SyncErrorBanner />
     </div>
   );
 }
