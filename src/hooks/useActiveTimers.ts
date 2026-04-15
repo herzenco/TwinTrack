@@ -105,7 +105,9 @@ export function useActiveTimers() {
       };
 
       try {
+        console.log('[stopTimer] calling RPC with params:', JSON.stringify(params));
         const event = await stopTimerAndCreateEvent(params);
+        console.log('[stopTimer] RPC success, event:', JSON.stringify(event));
 
         // Remove the timer from local state
         removeTimer(timerId);
@@ -116,6 +118,7 @@ export function useActiveTimers() {
 
         return event;
       } catch (err) {
+        console.error('[stopTimer] RPC failed:', err);
         const { setSyncError } = useAppStore.getState();
         setSyncError('Failed to save timer. Check your connection and try again.');
         throw err;
