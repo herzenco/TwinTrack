@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAppStore } from '../../store/appStore';
+import { deleteEvent, updateEventNote } from '../../lib/database';
 
 const UNDO_DURATION = 5000;
 
@@ -52,10 +53,15 @@ export function UndoToast() {
     return () => clearInterval(interval);
   }, [undoEvent, setUndoEvent]);
 
-  const handleUndo = useCallback(() => {
+  const handleUndo = useCallback(async () => {
     if (!undoEvent) return;
     removeEvent(undoEvent.id);
     setUndoEvent(null);
+    try {
+      await deleteEvent(undoEvent.id);
+    } catch {
+      // Already removed from local state; server delete failed silently
+    }
   }, [undoEvent, removeEvent, setUndoEvent]);
 
   const handleOpenNote = useCallback(() => {
@@ -64,12 +70,13 @@ export function UndoToast() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
-  const handleSaveNote = useCallback((text: string) => {
+  const handleSaveNote = useCallback(async (text: string) => {
     if (!undoEvent || !text.trim()) return;
 
+    const trimmed = text.trim();
     const store = useAppStore.getState();
     const updatedEvents = store.recentEvents.map((e) =>
-      e.id === undoEvent.id ? { ...e, note_text: text.trim() } : e
+      e.id === undoEvent.id ? { ...e, note_text: trimmed } : e
     );
     store.setRecentEvents(updatedEvents);
 
@@ -77,6 +84,12 @@ export function UndoToast() {
     setShowNote(false);
     setNoteText('');
     setTimeout(() => setUndoEvent(null), 1200);
+
+    try {
+      await updateEventNote(undoEvent.id, trimmed);
+    } catch {
+      // Local state already updated; server update failed silently
+    }
   }, [undoEvent, setUndoEvent]);
 
   const handleQuickNote = useCallback((note: string) => {

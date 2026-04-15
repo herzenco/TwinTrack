@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useAuth } from './hooks/useAuth';
 import { useTwinPair } from './hooks/useTwinPair';
 import { useInviteRedemption } from './hooks/useInviteRedemption';
+import { useRealtime } from './hooks/useRealtime';
+import { useEvents } from './hooks/useEvents';
+import { useActiveTimers } from './hooks/useActiveTimers';
 import { BottomNav } from './components/shared/BottomNav';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { SignupScreen } from './components/auth/SignupScreen';
@@ -17,6 +20,11 @@ function AuthenticatedApp() {
   const { pair, loading: pairLoading } = useTwinPair();
   const { redeeming } = useInviteRedemption();
   const location = useLocation();
+
+  // Activate data loading and real-time sync
+  useEvents();
+  useActiveTimers();
+  useRealtime();
 
   const isJoinRoute = location.pathname.startsWith('/join/');
 

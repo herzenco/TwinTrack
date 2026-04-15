@@ -210,6 +210,18 @@ export async function getEvents(
   return (data ?? []) as TrackedEvent[];
 }
 
+export async function updateEventNote(
+  eventId: string,
+  noteText: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('events')
+    .update({ note_text: noteText })
+    .eq('id', eventId);
+
+  if (error) throw error;
+}
+
 export async function deleteEvent(eventId: string): Promise<void> {
   const { error } = await supabase
     .from('events')
@@ -222,6 +234,18 @@ export async function deleteEvent(eventId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 // Active Timers
 // ---------------------------------------------------------------------------
+
+export async function updateTimerSide(
+  timerId: string,
+  feedSide: FeedSide
+): Promise<void> {
+  const { error } = await supabase
+    .from('active_timers')
+    .update({ feed_side: feedSide })
+    .eq('id', timerId);
+
+  if (error) throw error;
+}
 
 export async function getActiveTimers(
   pairId: string
@@ -264,6 +288,7 @@ export interface StopTimerParams {
   feed_unit?: FeedUnit | null;
   feed_type?: FeedType | null;
   note_text?: string | null;
+  feed_segments?: { side: string; duration_ms: number }[] | null;
 }
 
 export async function stopTimerAndCreateEvent(
@@ -276,6 +301,7 @@ export async function stopTimerAndCreateEvent(
     p_feed_unit: params.feed_unit ?? null,
     p_feed_type: params.feed_type ?? null,
     p_note_text: params.note_text ?? null,
+    p_feed_segments: params.feed_segments ?? null,
   });
 
   if (error) throw error;

@@ -7,9 +7,10 @@ interface TimerDisplayProps {
   twinColor: string;
   label?: string;
   onPausedTimeChange?: (pausedMs: number) => void;
+  onPauseStateChange?: (paused: boolean) => void;
 }
 
-export function TimerDisplay({ startedAt, type, twinColor, label, onPausedTimeChange }: TimerDisplayProps) {
+export function TimerDisplay({ startedAt, type, twinColor, label, onPausedTimeChange, onPauseStateChange }: TimerDisplayProps) {
   const [paused, setPaused] = useState(false);
   const [totalPausedMs, setTotalPausedMs] = useState(0);
   const [displayElapsed, setDisplayElapsed] = useState(() => elapsedMs(startedAt));
@@ -33,12 +34,14 @@ export function TimerDisplay({ startedAt, type, twinColor, label, onPausedTimeCh
       pauseStartRef.current = null;
       setPaused(false);
       onPausedTimeChange?.(newTotal);
+      onPauseStateChange?.(false);
     } else {
       // Pausing
       pauseStartRef.current = Date.now();
       setPaused(true);
+      onPauseStateChange?.(true);
     }
-  }, [paused, totalPausedMs, onPausedTimeChange]);
+  }, [paused, totalPausedMs, onPausedTimeChange, onPauseStateChange]);
 
   const typeIcon = type === 'feed' ? '🍼' : '😴';
   const timeString = formatDuration(displayElapsed);

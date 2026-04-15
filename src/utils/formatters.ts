@@ -1,4 +1,4 @@
-import type { DiaperSubtype, FeedMode, FeedSide, FeedType, FeedUnit } from '../types';
+import type { DiaperSubtype, FeedMode, FeedSegment, FeedSide, FeedType, FeedUnit } from '../types';
 
 export function formatFeedDetails(
   mode: FeedMode | null,
@@ -6,7 +6,8 @@ export function formatFeedDetails(
   unit: FeedUnit | null,
   feedType: FeedType | null,
   side: FeedSide | null,
-  durationMs: number | null
+  durationMs: number | null,
+  segments?: FeedSegment[] | null
 ): string {
   if (mode === 'bottle') {
     const parts: string[] = [];
@@ -16,7 +17,14 @@ export function formatFeedDetails(
   }
   if (mode === 'breast') {
     const parts: string[] = [];
-    if (side) parts.push(side.charAt(0).toUpperCase() + side.slice(1));
+    if (segments && segments.length > 1) {
+      const segParts = segments.map(
+        (s) => `${s.side === 'left' ? 'L' : 'R'}: ${Math.round(s.duration_ms / 60000)}min`
+      );
+      parts.push(segParts.join(' · '));
+    } else {
+      if (side) parts.push(side.charAt(0).toUpperCase() + side.slice(1));
+    }
     if (durationMs) {
       const min = Math.round(durationMs / 60000);
       parts.push(`${min}min`);

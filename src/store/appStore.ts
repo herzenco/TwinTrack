@@ -19,6 +19,7 @@ interface AppState {
   setActiveTimers: (timers: ActiveTimer[]) => void;
   addTimer: (timer: ActiveTimer) => void;
   removeTimer: (timerId: string) => void;
+  updateTimer: (timerId: string, updates: Partial<ActiveTimer>) => void;
 
   // Events
   recentEvents: TrackedEvent[];
@@ -52,6 +53,12 @@ export const useAppStore = create<AppState>((set) => ({
   removeTimer: (timerId) =>
     set((state) => ({
       activeTimers: state.activeTimers.filter((t) => t.id !== timerId),
+    })),
+  updateTimer: (timerId, updates) =>
+    set((state) => ({
+      activeTimers: state.activeTimers.map((t) =>
+        t.id === timerId ? { ...t, ...updates } : t
+      ),
     })),
 
   // Events

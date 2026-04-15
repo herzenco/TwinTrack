@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
-import type { TwinLabel, TwinPair, ActiveTimer, TrackedEvent, FeedType, FeedSide, DiaperSubtype } from '../../types';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import type { TwinLabel, TwinPair, ActiveTimer, TrackedEvent, FeedType, FeedSide, FeedSegment, DiaperSubtype } from '../../types';
 import { TimerDisplay } from './TimerDisplay';
 import { ActionButton } from './ActionButton';
 import { FeedModal } from './FeedModal';
+import { RetroLogModal } from './RetroLogModal';
 import { NudgeBanner } from './NudgeBanner';
 import { formatTime } from '../../utils/time';
 
@@ -15,7 +16,11 @@ interface TwinPanelProps {
   onStartBreast: (twin: TwinLabel, side: FeedSide) => void;
   onLogDiaper: (twin: TwinLabel, subtype: DiaperSubtype) => void;
   onToggleNap: (twin: TwinLabel) => void;
-  onStopTimer: (timerId: string, pausedMs?: number) => void;
+  onStopTimer: (timerId: string, pausedMs?: number, segments?: FeedSegment[]) => void;
+  onSwitchBreast: (timerId: string, newSide: FeedSide) => void;
+  onRetroLogBottle: (twin: TwinLabel, feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp: string) => void;
+  onRetroLogDiaper: (twin: TwinLabel, subtype: DiaperSubtype, timestamp: string) => void;
+  onRetroLogNap: (twin: TwinLabel, napStart: string, napEnd: string) => void;
 }
 
 function getNextFeedTime(lastFeedTimestamp: string, intervalMinutes: number): { time: string; overdue: boolean; diffMin: number } {
@@ -39,9 +44,17 @@ export function TwinPanel({
   onLogDiaper,
   onToggleNap,
   onStopTimer,
+  onSwitchBreast,
+  onRetroLogBottle,
+  onRetroLogDiaper,
+  onRetroLogNap,
 }: TwinPanelProps) {
   const [feedModalOpen, setFeedModalOpen] = useState(false);
+  const [retroModalOpen, setRetroModalOpen] = useState(false);
   const feedPausedMsRef = useRef(0);
+  const segmentsRef = useRef<FeedSegment[]>([]);
+  const feedIsPausedRef = useRef(false);
+  const feedPauseStartRef = useRef<number | null>(null);
 
   const isA = label === 'A';
   const name = isA ? pair.twin_a_name : pair.twin_b_name;
@@ -80,12 +93,83 @@ export function TwinPanel({
     [label, onLogBottle],
   );
 
+  const handleRetroLogBottle = useCallback(
+    (feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp: string) => {
+      onRetroLogBottle(label, feedType, amount, unit, timestamp);
+    },
+    [label, onRetroLogBottle],
+  );
+
+  const handleRetroLogDiaper = useCallback(
+    (subtype: DiaperSubtype, timestamp: string) => {
+      onRetroLogDiaper(label, subtype, timestamp);
+    },
+    [label, onRetroLogDiaper],
+  );
+
+  const handleRetroLogNap = useCallback(
+    (napStart: string, napEnd: string) => {
+      onRetroLogNap(label, napStart, napEnd);
+    },
+    [label, onRetroLogNap],
+  );
+
   const handleStartBreast = useCallback(
     (side: FeedSide) => {
       onStartBreast(label, side);
     },
     [label, onStartBreast],
   );
+
+  // Reset segment tracking when a new feed timer starts
+  useEffect(() => {
+    segmentsRef.current = [];
+    feedPausedMsRef.current = 0;
+    feedIsPausedRef.current = false;
+    feedPauseStartRef.current = null;
+  }, [feedTimer?.id]);
+
+  const getCurrentTotalPausedMs = useCallback(() => {
+    let total = feedPausedMsRef.current;
+    if (feedIsPausedRef.current && feedPauseStartRef.current) {
+      total += Date.now() - feedPauseStartRef.current;
+    }
+    return total;
+  }, []);
+
+  const handleSwitchSide = useCallback(() => {
+    if (!feedTimer || !feedTimer.feed_side || feedTimer.feed_side === 'both') return;
+    const totalPausedMs = getCurrentTotalPausedMs();
+    const totalActiveMs = Date.now() - new Date(feedTimer.started_at).getTime() - totalPausedMs;
+    const previousMs = segmentsRef.current.reduce((s, seg) => s + seg.duration_ms, 0);
+    const currentMs = Math.max(0, totalActiveMs - previousMs);
+    segmentsRef.current.push({ side: feedTimer.feed_side, duration_ms: currentMs });
+    const newSide: FeedSide = feedTimer.feed_side === 'left' ? 'right' : 'left';
+    onSwitchBreast(feedTimer.id, newSide);
+  }, [feedTimer, getCurrentTotalPausedMs, onSwitchBreast]);
+
+  const handleStopFeed = useCallback(() => {
+    if (!feedTimer) return;
+    // Finalize the current segment
+    let segments: FeedSegment[] | undefined;
+    if (feedTimer.feed_side && feedTimer.feed_side !== 'both') {
+      const totalPausedMs = getCurrentTotalPausedMs();
+      const totalActiveMs = Date.now() - new Date(feedTimer.started_at).getTime() - totalPausedMs;
+      const previousMs = segmentsRef.current.reduce((s, seg) => s + seg.duration_ms, 0);
+      const currentMs = Math.max(0, totalActiveMs - previousMs);
+      const allSegments = [...segmentsRef.current, { side: feedTimer.feed_side, duration_ms: currentMs }];
+      // Only include segments if there was a switch (more than 1 segment)
+      if (allSegments.length > 1) {
+        segments = allSegments;
+      }
+    }
+    onStopTimer(feedTimer.id, feedPausedMsRef.current, segments);
+  }, [feedTimer, getCurrentTotalPausedMs, onStopTimer]);
+
+  const handlePauseStateChange = useCallback((paused: boolean) => {
+    feedIsPausedRef.current = paused;
+    feedPauseStartRef.current = paused ? Date.now() : null;
+  }, []);
 
   // Feed time display
   const feedStartTime = lastFeed?.timestamp ? formatTime(lastFeed.timestamp) : null;
@@ -96,7 +180,7 @@ export function TwinPanel({
 
   return (
     <div
-      className="flex flex-col h-full rounded-2xl bg-bg-card/60 border overflow-hidden"
+      className="flex flex-col h-full rounded-2xl bg-bg-card/60 border overflow-y-auto"
       style={{ borderColor: `${color}25` }}
     >
       {/* Header: Name + breast side badge */}
@@ -126,9 +210,21 @@ export function TwinPanel({
                 twinColor={color}
                 label={`Feeding${feedTimer.feed_side ? ` (${feedTimer.feed_side.charAt(0).toUpperCase()})` : ''}`}
                 onPausedTimeChange={(ms) => { feedPausedMsRef.current = ms; }}
+                onPauseStateChange={handlePauseStateChange}
               />
+              {feedTimer.feed_side && feedTimer.feed_side !== 'both' && (
+                <button
+                  onClick={handleSwitchSide}
+                  className="w-full min-h-[60px] rounded-2xl text-base font-bold
+                             active:scale-[0.97] transition-all
+                             border-2 border-dashed"
+                  style={{ borderColor: `${color}40`, color }}
+                >
+                  Switch to {feedTimer.feed_side === 'left' ? 'Right →' : '← Left'}
+                </button>
+              )}
               <button
-                onClick={() => onStopTimer(feedTimer.id, feedPausedMsRef.current)}
+                onClick={handleStopFeed}
                 className="w-full min-h-[72px] rounded-2xl text-lg font-bold
                            active:scale-[0.97] transition-all text-[#0F1117]"
                 style={{ backgroundColor: color }}
@@ -173,15 +269,27 @@ export function TwinPanel({
               )}
             </div>
             {lastFeed ? (
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-text-primary font-mono">
-                  {feedStartTime}
-                  {feedDurationMin ? ` → ${feedEndTime}` : ''}
-                </span>
-                {feedDurationMin ? (
-                  <span className="text-xs text-text-muted">({feedDurationMin}min)</span>
-                ) : null}
-              </div>
+              <>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-bold text-text-primary font-mono">
+                    {feedStartTime}
+                    {feedDurationMin ? ` → ${feedEndTime}` : ''}
+                  </span>
+                  {feedDurationMin ? (
+                    <span className="text-xs text-text-muted">({feedDurationMin}min)</span>
+                  ) : null}
+                </div>
+                {lastFeed.feed_segments && lastFeed.feed_segments.length > 1 && (
+                  <div className="flex items-center gap-2 mt-1">
+                    {lastFeed.feed_segments.map((seg, i) => (
+                      <span key={i} className="text-xs font-semibold text-text-secondary">
+                        {seg.side === 'left' ? 'L' : 'R'}: {Math.round(seg.duration_ms / 60000)}min
+                        {i < lastFeed.feed_segments!.length - 1 ? ' ·' : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
               <span className="text-sm text-text-muted">No feeds yet</span>
             )}
@@ -294,6 +402,33 @@ export function TwinPanel({
         />
       </div>
 
+      {/* Log past activity button */}
+      <div className="px-3 pb-4">
+        <button
+          onClick={() => setRetroModalOpen(true)}
+          className="w-full min-h-[48px] rounded-2xl text-sm font-semibold
+                     bg-white/[0.04] text-text-muted hover:bg-white/[0.08]
+                     active:scale-[0.97] transition-all
+                     border border-dashed border-white/[0.1]
+                     flex items-center justify-center gap-2"
+        >
+          <span>+</span>
+          Log Past Activity
+        </button>
+      </div>
+
+      {/* Retro log modal */}
+      <RetroLogModal
+        open={retroModalOpen}
+        onClose={() => setRetroModalOpen(false)}
+        twinLabel={label}
+        twinName={name}
+        twinColor={color}
+        onLogBottle={handleRetroLogBottle}
+        onLogDiaper={handleRetroLogDiaper}
+        onLogNap={handleRetroLogNap}
+      />
+
       {/* Feed modal */}
       <FeedModal
         open={feedModalOpen}
@@ -301,6 +436,7 @@ export function TwinPanel({
         twinLabel={label}
         twinName={name}
         twinColor={color}
+        lastBreastSide={lastBreastSide}
         onLogBottle={handleLogBottle}
         onStartBreast={handleStartBreast}
       />

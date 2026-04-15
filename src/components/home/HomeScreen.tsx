@@ -1,19 +1,19 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useAppStore } from '../../store/appStore';
+import { useEvents } from '../../hooks/useEvents';
+import { useActiveTimers } from '../../hooks/useActiveTimers';
 import { TwinPanel } from './TwinPanel';
 import { TandemFeedView } from './TandemFeedView';
 import { BottomSheet } from '../shared/BottomSheet';
-import type { TwinLabel, FeedType, FeedSide, DiaperSubtype } from '../../types';
+import type { TwinLabel, FeedType, FeedSide, FeedSegment, DiaperSubtype, FeedUnit } from '../../types';
 
 export function HomeScreen() {
   const pair = useAppStore((s) => s.activePair);
   const timers = useAppStore((s) => s.activeTimers);
   const events = useAppStore((s) => s.recentEvents);
-  const addEvent = useAppStore((s) => s.addEvent);
-  const setUndoEvent = useAppStore((s) => s.setUndoEvent);
-  const addTimer = useAppStore((s) => s.addTimer);
-  const user = useAppStore((s) => s.user);
-  const profile = useAppStore((s) => s.profile);
+
+  const { logFeed, logDiaper, logNap } = useEvents();
+  const { startTimer, stopTimer, switchSide } = useActiveTimers();
 
   const [activeTwin, setActiveTwin] = useState<TwinLabel>('A');
   const [tandemSheetOpen, setTandemSheetOpen] = useState(false);
@@ -63,160 +63,94 @@ export function HomeScreen() {
   }, []);
 
   const handleLogBottle = useCallback(
-    (twin: TwinLabel, feedType: FeedType, amount: number, unit: 'oz' | 'ml') => {
-      const event = {
-        id: crypto.randomUUID(),
-        pair_id: pair?.id ?? '',
-        twin_label: twin,
-        type: 'feed' as const,
-        timestamp: new Date().toISOString(),
-        logged_by_uid: user?.id ?? '',
-        logged_by_name: profile?.display_name ?? 'Unknown',
-        encrypted: false,
-        feed_mode: 'bottle' as const,
+    (twin: TwinLabel, feedType: FeedType, amount: number, unit: FeedUnit) => {
+      logFeed(twin, 'bottle', {
         feed_amount: amount,
         feed_unit: unit,
         feed_type: feedType,
-        feed_side: null,
-        duration_ms: null,
-        diaper_subtype: null,
-        nap_start: null,
-        nap_end: null,
-        note_text: null,
-        created_at: new Date().toISOString(),
-      };
-      addEvent(event);
-      setUndoEvent(event);
+      });
     },
-    [pair, user, profile, addEvent, setUndoEvent],
+    [logFeed],
   );
 
   const handleStartBreast = useCallback(
     (twin: TwinLabel, side: FeedSide) => {
-      const timer = {
-        id: crypto.randomUUID(),
-        pair_id: pair?.id ?? '',
-        twin_label: twin,
-        type: 'feed' as const,
-        started_at: new Date().toISOString(),
-        started_by_uid: user?.id ?? '',
-        started_by_name: profile?.display_name ?? 'Unknown',
-        feed_side: side,
-      };
-      addTimer(timer);
+      startTimer(twin, 'feed', side);
     },
-    [pair, user, profile, addTimer],
+    [startTimer],
   );
 
   const handleStartTandem = useCallback(
-    (sideA: FeedSide, sideB: FeedSide) => {
-      const now = new Date().toISOString();
-      addTimer({
-        id: crypto.randomUUID(),
-        pair_id: pair?.id ?? '',
-        twin_label: 'A',
-        type: 'feed',
-        started_at: now,
-        started_by_uid: user?.id ?? '',
-        started_by_name: profile?.display_name ?? 'Unknown',
-        feed_side: sideA,
-      });
-      addTimer({
-        id: crypto.randomUUID(),
-        pair_id: pair?.id ?? '',
-        twin_label: 'B',
-        type: 'feed',
-        started_at: now,
-        started_by_uid: user?.id ?? '',
-        started_by_name: profile?.display_name ?? 'Unknown',
-        feed_side: sideB,
-      });
+    async (sideA: FeedSide, sideB: FeedSide) => {
+      await Promise.all([
+        startTimer('A', 'feed', sideA),
+        startTimer('B', 'feed', sideB),
+      ]);
       setTandemSheetOpen(false);
     },
-    [pair, user, profile, addTimer],
+    [startTimer],
   );
 
   const handleLogDiaper = useCallback(
     (twin: TwinLabel, subtype: DiaperSubtype) => {
-      const event = {
-        id: crypto.randomUUID(),
-        pair_id: pair?.id ?? '',
-        twin_label: twin,
-        type: 'diaper' as const,
-        timestamp: new Date().toISOString(),
-        logged_by_uid: user?.id ?? '',
-        logged_by_name: profile?.display_name ?? 'Unknown',
-        encrypted: false,
-        feed_mode: null,
-        feed_amount: null,
-        feed_unit: null,
-        feed_type: null,
-        feed_side: null,
-        duration_ms: null,
-        diaper_subtype: subtype,
-        nap_start: null,
-        nap_end: null,
-        note_text: null,
-        created_at: new Date().toISOString(),
-      };
-      addEvent(event);
-      setUndoEvent(event);
+      logDiaper(twin, subtype);
     },
-    [pair, user, profile, addEvent, setUndoEvent],
+    [logDiaper],
   );
 
   const handleToggleNap = useCallback(
     (twin: TwinLabel) => {
-      const timer = {
-        id: crypto.randomUUID(),
-        pair_id: pair?.id ?? '',
-        twin_label: twin,
-        type: 'nap' as const,
-        started_at: new Date().toISOString(),
-        started_by_uid: user?.id ?? '',
-        started_by_name: profile?.display_name ?? 'Unknown',
-        feed_side: null,
-      };
-      addTimer(timer);
+      startTimer(twin, 'nap');
     },
-    [pair, user, profile, addTimer],
+    [startTimer],
+  );
+
+  const handleSwitchBreast = useCallback(
+    (timerId: string, newSide: FeedSide) => {
+      switchSide(timerId, newSide);
+    },
+    [switchSide],
   );
 
   const handleStopTimer = useCallback(
-    (timerId: string, pausedMs?: number) => {
+    (timerId: string, _pausedMs?: number, segments?: FeedSegment[]) => {
       const timer = timers.find((t) => t.id === timerId);
       if (!timer) return;
 
-      useAppStore.getState().removeTimer(timerId);
-
-      const now = new Date().toISOString();
-      const totalElapsed = Date.now() - new Date(timer.started_at).getTime();
-      const durationMs = totalElapsed - (pausedMs ?? 0);
-      const event = {
-        id: crypto.randomUUID(),
-        pair_id: pair?.id ?? '',
-        twin_label: timer.twin_label,
-        type: timer.type,
-        timestamp: timer.started_at,
-        logged_by_uid: user?.id ?? '',
-        logged_by_name: profile?.display_name ?? 'Unknown',
-        encrypted: false,
-        feed_mode: timer.type === 'feed' ? ('breast' as const) : null,
-        feed_amount: null,
-        feed_unit: null,
-        feed_type: null,
-        feed_side: timer.feed_side,
-        duration_ms: durationMs,
-        diaper_subtype: null,
-        nap_start: timer.type === 'nap' ? timer.started_at : null,
-        nap_end: timer.type === 'nap' ? now : null,
-        note_text: null,
-        created_at: now,
-      };
-      addEvent(event);
-      setUndoEvent(event);
+      stopTimer(timerId, {
+        feed_mode: timer.type === 'feed' ? 'breast' : undefined,
+        feed_segments: segments && segments.length > 1 ? segments : undefined,
+      });
     },
-    [timers, pair, user, profile, addEvent, setUndoEvent],
+    [timers, stopTimer],
+  );
+
+  // Retro-log handlers
+  const handleRetroLogBottle = useCallback(
+    (twin: TwinLabel, feedType: FeedType, amount: number, unit: FeedUnit, timestamp: string) => {
+      logFeed(twin, 'bottle', {
+        feed_amount: amount,
+        feed_unit: unit,
+        feed_type: feedType,
+        timestamp,
+      });
+    },
+    [logFeed],
+  );
+
+  const handleRetroLogDiaper = useCallback(
+    (twin: TwinLabel, subtype: DiaperSubtype, timestamp: string) => {
+      logDiaper(twin, subtype, timestamp);
+    },
+    [logDiaper],
+  );
+
+  const handleRetroLogNap = useCallback(
+    (twin: TwinLabel, napStart: string, napEnd: string) => {
+      const durationMs = new Date(napEnd).getTime() - new Date(napStart).getTime();
+      logNap(twin, napStart, napEnd, durationMs);
+    },
+    [logNap],
   );
 
   if (!pair) {
@@ -239,6 +173,7 @@ export function HomeScreen() {
           timerA={feedTimerA}
           timerB={feedTimerB}
           onStopTimer={handleStopTimer}
+          onSwitchBreast={handleSwitchBreast}
         />
       </div>
     );
@@ -316,6 +251,10 @@ export function HomeScreen() {
             onLogDiaper={handleLogDiaper}
             onToggleNap={handleToggleNap}
             onStopTimer={handleStopTimer}
+            onSwitchBreast={handleSwitchBreast}
+            onRetroLogBottle={handleRetroLogBottle}
+            onRetroLogDiaper={handleRetroLogDiaper}
+            onRetroLogNap={handleRetroLogNap}
           />
         </div>
       </div>
@@ -348,6 +287,10 @@ export function HomeScreen() {
               onLogDiaper={handleLogDiaper}
               onToggleNap={handleToggleNap}
               onStopTimer={handleStopTimer}
+              onSwitchBreast={handleSwitchBreast}
+              onRetroLogBottle={handleRetroLogBottle}
+              onRetroLogDiaper={handleRetroLogDiaper}
+              onRetroLogNap={handleRetroLogNap}
             />
           </div>
           <div className="flex-1 min-h-0">
@@ -361,6 +304,10 @@ export function HomeScreen() {
               onLogDiaper={handleLogDiaper}
               onToggleNap={handleToggleNap}
               onStopTimer={handleStopTimer}
+              onSwitchBreast={handleSwitchBreast}
+              onRetroLogBottle={handleRetroLogBottle}
+              onRetroLogDiaper={handleRetroLogDiaper}
+              onRetroLogNap={handleRetroLogNap}
             />
           </div>
         </div>

@@ -1,12 +1,13 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { formatDuration, elapsedMs } from '../../utils/time';
-import type { TwinPair, ActiveTimer } from '../../types';
+import type { TwinPair, ActiveTimer, FeedSide, FeedSegment } from '../../types';
 
 interface TandemFeedViewProps {
   pair: TwinPair;
   timerA: ActiveTimer;
   timerB: ActiveTimer;
-  onStopTimer: (timerId: string, pausedMs?: number) => void;
+  onStopTimer: (timerId: string, pausedMs?: number, segments?: FeedSegment[]) => void;
+  onSwitchBreast: (timerId: string, newSide: FeedSide) => void;
 }
 
 function usePausableTimer(startedAt: string) {
@@ -48,6 +49,7 @@ function TandemTimer({
   timer,
   pauseState,
   onStop,
+  onSwitch,
 }: {
   label: string;
   name: string;
@@ -55,7 +57,8 @@ function TandemTimer({
   color: string;
   timer: ActiveTimer;
   pauseState: ReturnType<typeof usePausableTimer>;
-  onStop: () => void;
+  onStop: (segments?: FeedSegment[]) => void;
+  onSwitch: () => void;
 }) {
   const [elapsed, setElapsed] = useState(pauseState.getElapsed());
 
@@ -118,9 +121,21 @@ function TandemTimer({
         {pauseState.paused ? '▶ Resume' : '⏸ Pause'}
       </button>
 
+      {/* Switch side */}
+      {timer.feed_side && timer.feed_side !== 'both' && (
+        <button
+          onClick={onSwitch}
+          className="w-full min-h-[44px] rounded-xl text-xs font-bold
+                     active:scale-[0.97] transition-all border border-dashed"
+          style={{ borderColor: `${color}40`, color }}
+        >
+          Switch to {timer.feed_side === 'left' ? 'R →' : '← L'}
+        </button>
+      )}
+
       {/* Individual stop */}
       <button
-        onClick={onStop}
+        onClick={() => onStop()}
         className="w-full min-h-[44px] rounded-xl text-xs font-semibold
                    bg-white/[0.04] text-text-muted active:scale-[0.97] transition-all"
       >
@@ -130,9 +145,40 @@ function TandemTimer({
   );
 }
 
-export function TandemFeedView({ pair, timerA, timerB, onStopTimer }: TandemFeedViewProps) {
+function useTandemSegments(timer: ActiveTimer, pauseState: ReturnType<typeof usePausableTimer>) {
+  const segmentsRef = useRef<FeedSegment[]>([]);
+
+  useEffect(() => {
+    segmentsRef.current = [];
+  }, [timer.id]);
+
+  const switchSide = useCallback(() => {
+    if (!timer.feed_side || timer.feed_side === 'both') return;
+    const totalPausedMs = pauseState.getTotalPausedMs();
+    const totalActiveMs = Date.now() - new Date(timer.started_at).getTime() - totalPausedMs;
+    const previousMs = segmentsRef.current.reduce((s, seg) => s + seg.duration_ms, 0);
+    const currentMs = Math.max(0, totalActiveMs - previousMs);
+    segmentsRef.current.push({ side: timer.feed_side, duration_ms: currentMs });
+  }, [timer, pauseState]);
+
+  const finalizeSegments = useCallback((): FeedSegment[] | undefined => {
+    if (!timer.feed_side || timer.feed_side === 'both') return undefined;
+    const totalPausedMs = pauseState.getTotalPausedMs();
+    const totalActiveMs = Date.now() - new Date(timer.started_at).getTime() - totalPausedMs;
+    const previousMs = segmentsRef.current.reduce((s, seg) => s + seg.duration_ms, 0);
+    const currentMs = Math.max(0, totalActiveMs - previousMs);
+    const all = [...segmentsRef.current, { side: timer.feed_side, duration_ms: currentMs }];
+    return all.length > 1 ? all : undefined;
+  }, [timer, pauseState]);
+
+  return { switchSide, finalizeSegments, segmentsRef };
+}
+
+export function TandemFeedView({ pair, timerA, timerB, onStopTimer, onSwitchBreast }: TandemFeedViewProps) {
   const pauseA = usePausableTimer(timerA.started_at);
   const pauseB = usePausableTimer(timerB.started_at);
+  const segA = useTandemSegments(timerA, pauseA);
+  const segB = useTandemSegments(timerB, pauseB);
 
   const handlePauseBoth = useCallback(() => {
     if (!pauseA.paused) pauseA.togglePause();
@@ -147,9 +193,21 @@ export function TandemFeedView({ pair, timerA, timerB, onStopTimer }: TandemFeed
   const bothPaused = pauseA.paused && pauseB.paused;
 
   const handleStopBoth = useCallback(() => {
-    onStopTimer(timerA.id, pauseA.getTotalPausedMs());
-    onStopTimer(timerB.id, pauseB.getTotalPausedMs());
-  }, [timerA, timerB, pauseA, pauseB, onStopTimer]);
+    onStopTimer(timerA.id, pauseA.getTotalPausedMs(), segA.finalizeSegments());
+    onStopTimer(timerB.id, pauseB.getTotalPausedMs(), segB.finalizeSegments());
+  }, [timerA, timerB, pauseA, pauseB, segA, segB, onStopTimer]);
+
+  const handleSwitchA = useCallback(() => {
+    if (!timerA.feed_side || timerA.feed_side === 'both') return;
+    segA.switchSide();
+    onSwitchBreast(timerA.id, timerA.feed_side === 'left' ? 'right' : 'left');
+  }, [timerA, segA, onSwitchBreast]);
+
+  const handleSwitchB = useCallback(() => {
+    if (!timerB.feed_side || timerB.feed_side === 'both') return;
+    segB.switchSide();
+    onSwitchBreast(timerB.id, timerB.feed_side === 'left' ? 'right' : 'left');
+  }, [timerB, segB, onSwitchBreast]);
 
   return (
     <div className="flex flex-col h-full px-3 py-3 gap-3">
@@ -168,7 +226,8 @@ export function TandemFeedView({ pair, timerA, timerB, onStopTimer }: TandemFeed
           color={pair.twin_a_color}
           timer={timerA}
           pauseState={pauseA}
-          onStop={() => onStopTimer(timerA.id, pauseA.getTotalPausedMs())}
+          onStop={(segs) => onStopTimer(timerA.id, pauseA.getTotalPausedMs(), segs ?? segA.finalizeSegments())}
+          onSwitch={handleSwitchA}
         />
         <TandemTimer
           label={pair.twin_b_name}
@@ -177,7 +236,8 @@ export function TandemFeedView({ pair, timerA, timerB, onStopTimer }: TandemFeed
           color={pair.twin_b_color}
           timer={timerB}
           pauseState={pauseB}
-          onStop={() => onStopTimer(timerB.id, pauseB.getTotalPausedMs())}
+          onStop={(segs) => onStopTimer(timerB.id, pauseB.getTotalPausedMs(), segs ?? segB.finalizeSegments())}
+          onSwitch={handleSwitchB}
         />
       </div>
 
