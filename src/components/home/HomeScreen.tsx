@@ -64,92 +64,132 @@ export function HomeScreen() {
   }, []);
 
   const handleLogBottle = useCallback(
-    (twin: TwinLabel, feedType: FeedType, amount: number, unit: FeedUnit) => {
-      logFeed(twin, 'bottle', {
-        feed_amount: amount,
-        feed_unit: unit,
-        feed_type: feedType,
-      });
+    async (twin: TwinLabel, feedType: FeedType, amount: number, unit: FeedUnit) => {
+      try {
+        await logFeed(twin, 'bottle', {
+          feed_amount: amount,
+          feed_unit: unit,
+          feed_type: feedType,
+        });
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
     },
     [logFeed],
   );
 
   const handleStartBreast = useCallback(
-    (twin: TwinLabel, side: FeedSide) => {
-      startTimer(twin, 'feed', side);
+    async (twin: TwinLabel, side: FeedSide) => {
+      try {
+        await startTimer(twin, 'feed', side);
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
     },
     [startTimer],
   );
 
   const handleStartTandem = useCallback(
     async (sideA: FeedSide, sideB: FeedSide) => {
-      await Promise.all([
-        startTimer('A', 'feed', sideA),
-        startTimer('B', 'feed', sideB),
-      ]);
-      setTandemSheetOpen(false);
+      try {
+        await Promise.all([
+          startTimer('A', 'feed', sideA),
+          startTimer('B', 'feed', sideB),
+        ]);
+        setTandemSheetOpen(false);
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
     },
     [startTimer],
   );
 
   const handleLogDiaper = useCallback(
-    (twin: TwinLabel, subtype: DiaperSubtype) => {
-      logDiaper(twin, subtype);
+    async (twin: TwinLabel, subtype: DiaperSubtype) => {
+      try {
+        await logDiaper(twin, subtype);
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
     },
     [logDiaper],
   );
 
   const handleToggleNap = useCallback(
-    (twin: TwinLabel) => {
-      startTimer(twin, 'nap');
+    async (twin: TwinLabel) => {
+      try {
+        await startTimer(twin, 'nap');
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
     },
     [startTimer],
   );
 
   const handleSwitchBreast = useCallback(
-    (timerId: string, newSide: FeedSide) => {
-      switchSide(timerId, newSide);
+    async (timerId: string, newSide: FeedSide) => {
+      try {
+        await switchSide(timerId, newSide);
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
     },
     [switchSide],
   );
 
   const handleStopTimer = useCallback(
-    (timerId: string, _pausedMs?: number, segments?: FeedSegment[]) => {
+    async (timerId: string, _pausedMs?: number, segments?: FeedSegment[]) => {
       const timer = timers.find((t) => t.id === timerId);
       if (!timer) return;
 
-      stopTimer(timerId, {
-        feed_mode: timer.type === 'feed' ? 'breast' : undefined,
-        feed_segments: segments && segments.length > 1 ? segments : undefined,
-      });
+      try {
+        await stopTimer(timerId, {
+          feed_mode: timer.type === 'feed' ? 'breast' : undefined,
+          feed_segments: segments && segments.length > 1 ? segments : undefined,
+        });
+      } catch {
+        // Error already surfaced via SyncErrorBanner
+      }
     },
     [timers, stopTimer],
   );
 
   // Retro-log handlers
   const handleRetroLogBottle = useCallback(
-    (twin: TwinLabel, feedType: FeedType, amount: number, unit: FeedUnit, timestamp: string) => {
-      logFeed(twin, 'bottle', {
-        feed_amount: amount,
-        feed_unit: unit,
-        feed_type: feedType,
-        timestamp,
-      });
+    async (twin: TwinLabel, feedType: FeedType, amount: number, unit: FeedUnit, timestamp: string) => {
+      try {
+        await logFeed(twin, 'bottle', {
+          feed_amount: amount,
+          feed_unit: unit,
+          feed_type: feedType,
+          timestamp,
+        });
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
     },
     [logFeed],
   );
 
   const handleRetroLogDiaper = useCallback(
-    (twin: TwinLabel, subtype: DiaperSubtype, timestamp: string) => {
-      logDiaper(twin, subtype, timestamp);
+    async (twin: TwinLabel, subtype: DiaperSubtype, timestamp: string) => {
+      try {
+        await logDiaper(twin, subtype, timestamp);
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
     },
     [logDiaper],
   );
 
   const handleRetroLogNap = useCallback(
-    (twin: TwinLabel, napStart: string, napEnd: string) => {
-      const durationMs = new Date(napEnd).getTime() - new Date(napStart).getTime();
-      logNap(twin, napStart, napEnd, durationMs);
+    async (twin: TwinLabel, napStart: string, napEnd: string) => {
+      try {
+        const durationMs = new Date(napEnd).getTime() - new Date(napStart).getTime();
+        await logNap(twin, napStart, napEnd, durationMs);
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
     },
     [logNap],
   );

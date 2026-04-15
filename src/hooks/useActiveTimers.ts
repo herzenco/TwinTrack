@@ -90,17 +90,17 @@ export function useActiveTimers() {
         feed_amount?: number;
         feed_unit?: FeedUnit;
         feed_type?: FeedType;
-        note_text?: string;
         feed_segments?: FeedSegment[];
       } = {}
     ) => {
+      const name = profile?.display_name ?? user?.email ?? 'Unknown';
       const params: StopTimerParams = {
         timer_id: timerId,
+        logged_by_name: name,
         feed_mode: opts.feed_mode ?? null,
         feed_amount: opts.feed_amount ?? null,
         feed_unit: opts.feed_unit ?? null,
         feed_type: opts.feed_type ?? null,
-        note_text: opts.note_text ?? null,
         feed_segments: opts.feed_segments ?? null,
       };
 
@@ -121,7 +121,7 @@ export function useActiveTimers() {
         throw err;
       }
     },
-    [removeTimer, addEvent, setUndoEvent]
+    [user, profile, removeTimer, addEvent, setUndoEvent]
   );
 
   const switchSide = useCallback(

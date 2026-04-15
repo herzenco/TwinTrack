@@ -283,11 +283,11 @@ export async function createTimer(
 
 export interface StopTimerParams {
   timer_id: string;
+  logged_by_name?: string | null;
   feed_mode?: FeedMode | null;
   feed_amount?: number | null;
   feed_unit?: FeedUnit | null;
   feed_type?: FeedType | null;
-  note_text?: string | null;
   feed_segments?: { side: string; duration_ms: number }[] | null;
 }
 
@@ -296,11 +296,11 @@ export async function stopTimerAndCreateEvent(
 ): Promise<TrackedEvent> {
   const { data, error } = await supabase.rpc('stop_timer_and_create_event', {
     p_timer_id: params.timer_id,
+    p_logged_by_name: params.logged_by_name ?? null,
     p_feed_mode: params.feed_mode ?? null,
     p_feed_amount: params.feed_amount ?? null,
     p_feed_unit: params.feed_unit ?? null,
     p_feed_type: params.feed_type ?? null,
-    p_note_text: params.note_text ?? null,
     p_feed_segments: params.feed_segments ?? null,
   });
 
