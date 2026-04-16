@@ -8,6 +8,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 /**
  * Sets up Supabase Realtime subscriptions for the active twin pair.
  * Subscribes to active_timers, events, and pair_members changes.
+ * DELETE subscriptions use no filter (Supabase Realtime doesn't reliably
+ * filter deletes) — we filter client-side instead.
  * On reconnection, refetches full state to avoid missed events.
  */
 export function useRealtime() {
@@ -46,7 +48,10 @@ export function useRealtime() {
 
     const channel = supabase
       .channel(`pair-${pairId}`)
-      // Active timers: INSERT, DELETE
+
+      // ---------------------------------------------------------------
+      // Active timers
+      // ---------------------------------------------------------------
       .on(
         'postgres_changes',
         {
@@ -57,7 +62,6 @@ export function useRealtime() {
         },
         (payload) => {
           const timer = payload.new as ActiveTimer;
-          // Avoid duplicates from our own inserts
           const { activeTimers } = useAppStore.getState();
           if (!activeTimers.some((t) => t.id === timer.id)) {
             addTimer(timer);
@@ -84,14 +88,21 @@ export function useRealtime() {
           event: 'DELETE',
           schema: 'public',
           table: 'active_timers',
-          filter: `pair_id=eq.${pairId}`,
         },
         (payload) => {
-          const old = payload.old as { id?: string };
-          if (old.id) removeTimer(old.id);
+          const old = payload.old as { id?: string; pair_id?: string };
+          if (old.id) {
+            // Only act on timers for our pair (or if pair_id not in payload, remove anyway)
+            if (!old.pair_id || old.pair_id === pairId) {
+              removeTimer(old.id);
+            }
+          }
         }
       )
-      // Events: INSERT (new events from any caregiver)
+
+      // ---------------------------------------------------------------
+      // Events
+      // ---------------------------------------------------------------
       .on(
         'postgres_changes',
         {
@@ -102,31 +113,47 @@ export function useRealtime() {
         },
         (payload) => {
           const event = payload.new as TrackedEvent;
-          // Avoid duplicates from optimistic inserts
           const { recentEvents } = useAppStore.getState();
           if (!recentEvents.some((e) => e.id === event.id)) {
             addEvent(event);
           }
         }
       )
-      // Events: DELETE (undo by any caregiver)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'events',
+          filter: `pair_id=eq.${pairId}`,
+        },
+        (payload) => {
+          const updated = payload.new as TrackedEvent;
+          const { recentEvents, setRecentEvents: setEvents } = useAppStore.getState();
+          setEvents(recentEvents.map((e) => e.id === updated.id ? updated : e));
+        }
+      )
       .on(
         'postgres_changes',
         {
           event: 'DELETE',
           schema: 'public',
           table: 'events',
-          filter: `pair_id=eq.${pairId}`,
         },
         (payload) => {
-          const old = payload.old as { id?: string };
+          const old = payload.old as { id?: string; pair_id?: string };
           if (old.id) {
-            const { removeEvent } = useAppStore.getState();
-            removeEvent(old.id);
+            if (!old.pair_id || old.pair_id === pairId) {
+              const { removeEvent } = useAppStore.getState();
+              removeEvent(old.id);
+            }
           }
         }
       )
-      // Pair members: INSERT, DELETE
+
+      // ---------------------------------------------------------------
+      // Pair members
+      // ---------------------------------------------------------------
       .on(
         'postgres_changes',
         {
@@ -149,13 +176,14 @@ export function useRealtime() {
           event: 'DELETE',
           schema: 'public',
           table: 'pair_members',
-          filter: `pair_id=eq.${pairId}`,
         },
         (payload) => {
-          const old = payload.old as { id?: string };
+          const old = payload.old as { id?: string; pair_id?: string };
           if (old.id) {
-            const { pairMembers } = useAppStore.getState();
-            setPairMembers(pairMembers.filter((m) => m.id !== old.id));
+            if (!old.pair_id || old.pair_id === pairId) {
+              const { pairMembers } = useAppStore.getState();
+              setPairMembers(pairMembers.filter((m) => m.id !== old.id));
+            }
           }
         }
       )
