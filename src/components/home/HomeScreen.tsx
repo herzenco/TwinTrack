@@ -360,6 +360,7 @@ export function HomeScreen() {
               onStopTimer={handleStopTimer}
               onSwitchBreast={handleSwitchBreast}
               onRetroLogBottle={handleRetroLogBottle}
+              onRetroLogBreast={handleRetroLogBreast}
               onRetroLogDiaper={handleRetroLogDiaper}
               onRetroLogNap={handleRetroLogNap}
             />
@@ -377,6 +378,7 @@ export function HomeScreen() {
               onStopTimer={handleStopTimer}
               onSwitchBreast={handleSwitchBreast}
               onRetroLogBottle={handleRetroLogBottle}
+              onRetroLogBreast={handleRetroLogBreast}
               onRetroLogDiaper={handleRetroLogDiaper}
               onRetroLogNap={handleRetroLogNap}
             />
