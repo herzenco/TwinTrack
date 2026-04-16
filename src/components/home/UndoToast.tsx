@@ -55,10 +55,11 @@ export function UndoToast() {
 
   const handleUndo = useCallback(async () => {
     if (!undoEvent) return;
-    removeEvent(undoEvent.id);
     setUndoEvent(null);
     try {
       await deleteEvent(undoEvent.id);
+      // Only remove from local state after DB confirms the delete
+      removeEvent(undoEvent.id);
     } catch (err) {
       console.error('[handleUndo] delete failed:', err);
       const { setSyncError } = useAppStore.getState();
