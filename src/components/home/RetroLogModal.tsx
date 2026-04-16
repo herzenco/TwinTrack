@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { BottomSheet } from '../shared/BottomSheet';
-import type { TwinLabel, FeedType, DiaperSubtype } from '../../types';
+import type { TwinLabel, FeedType, FeedSide, DiaperSubtype } from '../../types';
 
-type RetroActivityType = 'bottle' | 'diaper' | 'nap';
+type RetroActivityType = 'bottle' | 'breast' | 'diaper' | 'nap';
 
 interface RetroLogModalProps {
   open: boolean;
@@ -10,7 +10,9 @@ interface RetroLogModalProps {
   twinLabel: TwinLabel;
   twinName: string;
   twinColor: string;
+  lastBreastSide: FeedSide | null;
   onLogBottle: (feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp: string) => void;
+  onLogBreast: (side: FeedSide, startTime: string, endTime: string) => void;
   onLogDiaper: (subtype: DiaperSubtype, timestamp: string) => void;
   onLogNap: (napStart: string, napEnd: string) => void;
 }
@@ -27,7 +29,9 @@ export function RetroLogModal({
   onClose,
   twinName,
   twinColor,
+  lastBreastSide,
   onLogBottle,
+  onLogBreast,
   onLogDiaper,
   onLogNap,
 }: RetroLogModalProps) {
@@ -39,6 +43,12 @@ export function RetroLogModal({
   const [amount, setAmount] = useState<number>(3);
   const [customAmount, setCustomAmount] = useState('');
   const [showCustom, setShowCustom] = useState(false);
+
+  // Breast state
+  const [breastSide, setBreastSide] = useState<FeedSide>(
+    lastBreastSide === 'left' ? 'right' : lastBreastSide === 'right' ? 'left' : 'left'
+  );
+  const [breastEndValue, setBreastEndValue] = useState(() => toLocalDatetimeValue(new Date()));
 
   // Nap state
   const [napEndValue, setNapEndValue] = useState(() => toLocalDatetimeValue(new Date()));
@@ -52,6 +62,8 @@ export function RetroLogModal({
     setAmount(3);
     setCustomAmount('');
     setShowCustom(false);
+    setBreastSide(lastBreastSide === 'left' ? 'right' : lastBreastSide === 'right' ? 'left' : 'left');
+    setBreastEndValue(toLocalDatetimeValue(new Date()));
     setNapEndValue(toLocalDatetimeValue(new Date()));
   }
 
@@ -72,6 +84,14 @@ export function RetroLogModal({
   function handleLogDiaper(subtype: DiaperSubtype) {
     const timestamp = new Date(timeValue).toISOString();
     onLogDiaper(subtype, timestamp);
+    handleClose();
+  }
+
+  function handleLogBreast() {
+    const start = new Date(timeValue);
+    const end = new Date(breastEndValue);
+    if (end <= start) return;
+    onLogBreast(breastSide, start.toISOString(), end.toISOString());
     handleClose();
   }
 
@@ -98,6 +118,17 @@ export function RetroLogModal({
             <div className="text-left">
               <p className="text-base font-semibold text-text-primary">Bottle Feed</p>
               <p className="text-sm text-text-secondary">Formula or breast milk</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setActivity('breast')}
+            className="flex items-center gap-4 min-h-[64px] px-5 rounded-2xl bg-white/5
+                       hover:bg-white/10 active:scale-[0.98] transition-all"
+          >
+            <span className="text-2xl">🤱</span>
+            <div className="text-left">
+              <p className="text-base font-semibold text-text-primary">Breast Feed</p>
+              <p className="text-sm text-text-secondary">Log a completed session</p>
             </div>
           </button>
           <button
@@ -231,6 +262,107 @@ export function RetroLogModal({
             style={{ backgroundColor: twinColor }}
           >
             Log {showCustom ? customAmount || '0' : amount}oz {feedType === 'formula' ? 'Formula' : 'BM'}
+          </button>
+        </div>
+      )}
+
+      {/* Breast flow */}
+      {activity === 'breast' && (
+        <div className="flex flex-col gap-5">
+          <button
+            onClick={() => setActivity(null)}
+            className="self-start text-sm text-text-muted hover:text-text-secondary transition-colors
+                       min-h-[44px] flex items-center"
+          >
+            &larr; Back
+          </button>
+
+          {/* Side */}
+          <div>
+            <p className="text-sm font-medium text-text-secondary mb-2">
+              Side
+              {lastBreastSide && (
+                <span className="ml-1 text-text-muted">
+                  (last: {lastBreastSide === 'left' ? 'L' : lastBreastSide === 'right' ? 'R' : 'Both'})
+                </span>
+              )}
+            </p>
+            <div className="flex gap-3">
+              {([
+                { side: 'left' as FeedSide, label: 'Left' },
+                { side: 'right' as FeedSide, label: 'Right' },
+                { side: 'both' as FeedSide, label: 'Both' },
+              ]).map(({ side, label }) => (
+                <button
+                  key={side}
+                  onClick={() => setBreastSide(side)}
+                  className={`flex-1 min-h-[56px] rounded-2xl text-base font-bold transition-all active:scale-95
+                    ${breastSide === side
+                      ? 'text-[#0F1117]'
+                      : 'bg-white/5 text-text-secondary hover:bg-white/10'
+                    }`}
+                  style={breastSide === side ? { backgroundColor: twinColor } : undefined}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Started */}
+          <div>
+            <p className="text-sm font-medium text-text-secondary mb-2">Started</p>
+            <input
+              type="datetime-local"
+              value={timeValue}
+              max={maxDatetime}
+              onChange={(e) => setTimeValue(e.target.value)}
+              className="w-full min-h-[56px] px-4 rounded-2xl bg-white/5 text-text-primary
+                         text-base border border-white/10 focus:outline-none focus:border-white/20"
+            />
+          </div>
+
+          {/* Ended */}
+          <div>
+            <p className="text-sm font-medium text-text-secondary mb-2">Ended</p>
+            <input
+              type="datetime-local"
+              value={breastEndValue}
+              max={maxDatetime}
+              onChange={(e) => setBreastEndValue(e.target.value)}
+              className="w-full min-h-[56px] px-4 rounded-2xl bg-white/5 text-text-primary
+                         text-base border border-white/10 focus:outline-none focus:border-white/20"
+            />
+          </div>
+
+          {/* Duration preview */}
+          {(() => {
+            const start = new Date(timeValue);
+            const end = new Date(breastEndValue);
+            const diffMs = end.getTime() - start.getTime();
+            if (diffMs <= 0) return (
+              <p className="text-sm text-danger text-center">End time must be after start time</p>
+            );
+            const min = Math.round(diffMs / 60000);
+            const h = Math.floor(min / 60);
+            const m = min % 60;
+            const label = h > 0 ? `${h}h ${m}m` : `${min}min`;
+            return (
+              <p className="text-center text-text-secondary text-sm">
+                Duration: <span className="font-bold text-text-primary">{label}</span>
+              </p>
+            );
+          })()}
+
+          {/* Log button */}
+          <button
+            onClick={handleLogBreast}
+            disabled={new Date(breastEndValue) <= new Date(timeValue)}
+            className="min-h-[72px] rounded-2xl text-lg font-bold active:scale-[0.97] transition-all
+                       text-[#0F1117] disabled:opacity-40 disabled:pointer-events-none"
+            style={{ backgroundColor: twinColor }}
+          >
+            Log Breast Feed
           </button>
         </div>
       )}

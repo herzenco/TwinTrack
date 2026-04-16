@@ -19,6 +19,7 @@ interface TwinPanelProps {
   onStopTimer: (timerId: string, pausedMs?: number, segments?: FeedSegment[]) => void;
   onSwitchBreast: (timerId: string, newSide: FeedSide) => void;
   onRetroLogBottle: (twin: TwinLabel, feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp: string) => void;
+  onRetroLogBreast: (twin: TwinLabel, side: FeedSide, startTime: string, endTime: string) => void;
   onRetroLogDiaper: (twin: TwinLabel, subtype: DiaperSubtype, timestamp: string) => void;
   onRetroLogNap: (twin: TwinLabel, napStart: string, napEnd: string) => void;
 }
@@ -46,6 +47,7 @@ export function TwinPanel({
   onStopTimer,
   onSwitchBreast,
   onRetroLogBottle,
+  onRetroLogBreast,
   onRetroLogDiaper,
   onRetroLogNap,
 }: TwinPanelProps) {
@@ -98,6 +100,13 @@ export function TwinPanel({
       onRetroLogBottle(label, feedType, amount, unit, timestamp);
     },
     [label, onRetroLogBottle],
+  );
+
+  const handleRetroLogBreast = useCallback(
+    (side: FeedSide, startTime: string, endTime: string) => {
+      onRetroLogBreast(label, side, startTime, endTime);
+    },
+    [label, onRetroLogBreast],
   );
 
   const handleRetroLogDiaper = useCallback(
@@ -424,7 +433,9 @@ export function TwinPanel({
         twinLabel={label}
         twinName={name}
         twinColor={color}
+        lastBreastSide={lastBreastSide}
         onLogBottle={handleRetroLogBottle}
+        onLogBreast={handleRetroLogBreast}
         onLogDiaper={handleRetroLogDiaper}
         onLogNap={handleRetroLogNap}
       />
