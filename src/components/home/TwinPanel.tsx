@@ -273,6 +273,9 @@ export function TwinPanel({
               {lastFeed?.feed_mode && (
                 <span className="text-xs text-text-muted">
                   {lastFeed.feed_mode === 'breast' ? '🤱 Breast' : '🍼 Bottle'}
+                  {lastFeed.feed_mode === 'breast' && lastFeed.feed_side && (
+                    <> · Started {lastFeed.feed_side === 'left' ? 'L' : lastFeed.feed_side === 'right' ? 'R' : 'Both'}</>
+                  )}
                   {lastFeed.feed_amount ? ` · ${lastFeed.feed_amount}${lastFeed.feed_unit}` : ''}
                 </span>
               )}
@@ -288,16 +291,32 @@ export function TwinPanel({
                     <span className="text-xs text-text-muted">({feedDurationMin}min)</span>
                   ) : null}
                 </div>
-                {lastFeed.feed_segments && lastFeed.feed_segments.length > 1 && (
-                  <div className="flex items-center gap-2 mt-1">
-                    {lastFeed.feed_segments.map((seg, i) => (
-                      <span key={i} className="text-xs font-semibold text-text-secondary">
-                        {seg.side === 'left' ? 'L' : 'R'}: {Math.round(seg.duration_ms / 60000)}min
-                        {i < lastFeed.feed_segments!.length - 1 ? ' ·' : ''}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {lastFeed.feed_segments && lastFeed.feed_segments.length > 1 && (() => {
+                  const segments = lastFeed.feed_segments!;
+                  const totalSegMs = segments.reduce((s, seg) => s + seg.duration_ms, 0);
+                  const gapMs = (lastFeed.duration_ms ?? 0) - totalSegMs;
+                  const gapSec = Math.max(0, Math.round(gapMs / 1000));
+                  const gapLabel = gapSec >= 60
+                    ? `${Math.floor(gapSec / 60)}m ${gapSec % 60}s`
+                    : `${gapSec}s`;
+                  return (
+                    <div className="flex flex-col gap-1 mt-1">
+                      <div className="flex items-center gap-2">
+                        {segments.map((seg, i) => (
+                          <span key={i} className="text-xs font-semibold text-text-secondary">
+                            {seg.side === 'left' ? 'L' : 'R'}: {Math.round(seg.duration_ms / 60000)}min
+                            {i < segments.length - 1 ? ' ·' : ''}
+                          </span>
+                        ))}
+                      </div>
+                      {gapSec > 0 && (
+                        <span className="text-xs text-text-muted">
+                          Latch gap: {gapLabel}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </>
             ) : (
               <span className="text-sm text-text-muted">No feeds yet</span>
