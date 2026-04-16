@@ -189,16 +189,21 @@ export function useRealtime() {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          // Successfully subscribed — no action needed
+          // Initial fetch once connected
+          refetchAll();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          // On error or timeout, refetch to catch missed changes
           refetchAll();
         }
       });
 
     channelRef.current = channel;
 
+    // Poll every 15 seconds as a fallback for missed realtime events
+    // (DELETE events are unreliable in Supabase Realtime)
+    const pollInterval = setInterval(refetchAll, 15000);
+
     return () => {
+      clearInterval(pollInterval);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
