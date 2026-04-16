@@ -222,6 +222,25 @@ export async function updateEventNote(
   if (error) throw error;
 }
 
+export async function updateEvent(
+  eventId: string,
+  updates: Partial<Pick<TrackedEvent,
+    'twin_label' | 'type' | 'timestamp' | 'feed_mode' | 'feed_type' |
+    'feed_amount' | 'feed_unit' | 'feed_side' | 'duration_ms' |
+    'diaper_subtype' | 'nap_start' | 'nap_end' | 'note_text'
+  >>
+): Promise<TrackedEvent> {
+  const { data, error } = await supabase
+    .from('events')
+    .update(updates)
+    .eq('id', eventId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as TrackedEvent;
+}
+
 export async function deleteEvent(eventId: string): Promise<void> {
   const { data, error } = await supabase
     .from('events')
