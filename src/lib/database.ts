@@ -223,12 +223,16 @@ export async function updateEventNote(
 }
 
 export async function deleteEvent(eventId: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('events')
     .delete()
-    .eq('id', eventId);
+    .eq('id', eventId)
+    .select('id');
 
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error('Delete failed — you may not have permission to delete this event');
+  }
 }
 
 // ---------------------------------------------------------------------------
