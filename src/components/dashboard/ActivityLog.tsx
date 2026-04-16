@@ -4,6 +4,7 @@ import { formatTime } from '../../utils/time';
 import { formatFeedDetails, formatDiaperType, formatNapDuration } from '../../utils/formatters';
 import { BottomSheet } from '../shared/BottomSheet';
 import { useAppStore } from '../../store/appStore';
+import { deleteEvent, updateEvent } from '../../lib/database';
 
 function escapeCsv(value: string): string {
   if (value.includes(',') || value.includes('"') || value.includes('\n')) {
@@ -94,20 +95,45 @@ export function ActivityLog({ events, pair, caregivers }: ActivityLogProps) {
     URL.revokeObjectURL(url);
   }, [filtered]);
 
-  const handleSaveEdit = useCallback((updated: TrackedEvent) => {
-    const store = useAppStore.getState();
-    const updatedEvents = store.recentEvents.map((e) =>
-      e.id === updated.id ? updated : e
-    );
-    store.setRecentEvents(updatedEvents);
+  const handleSaveEdit = useCallback(async (updated: TrackedEvent) => {
     setEditingEvent(null);
-    // TODO: persist to database
+    try {
+      const serverEvent = await updateEvent(updated.id, {
+        twin_label: updated.twin_label,
+        type: updated.type,
+        timestamp: updated.timestamp,
+        feed_mode: updated.feed_mode,
+        feed_type: updated.feed_type,
+        feed_amount: updated.feed_amount,
+        feed_unit: updated.feed_unit,
+        feed_side: updated.feed_side,
+        duration_ms: updated.duration_ms,
+        diaper_subtype: updated.diaper_subtype,
+        nap_start: updated.nap_start,
+        nap_end: updated.nap_end,
+        note_text: updated.note_text,
+      });
+      const store = useAppStore.getState();
+      store.setRecentEvents(
+        store.recentEvents.map((e) => e.id === serverEvent.id ? serverEvent : e)
+      );
+    } catch (err) {
+      const { setSyncError } = useAppStore.getState();
+      const msg = err instanceof Error ? err.message : String(err);
+      setSyncError(`Save failed: ${msg}`);
+    }
   }, []);
 
-  const handleDeleteEvent = useCallback((eventId: string) => {
-    useAppStore.getState().removeEvent(eventId);
+  const handleDeleteEvent = useCallback(async (eventId: string) => {
     setEditingEvent(null);
-    // TODO: persist to database
+    try {
+      await deleteEvent(eventId);
+      useAppStore.getState().removeEvent(eventId);
+    } catch (err) {
+      const { setSyncError } = useAppStore.getState();
+      const msg = err instanceof Error ? err.message : String(err);
+      setSyncError(`Delete failed: ${msg}`);
+    }
   }, []);
 
   return (
