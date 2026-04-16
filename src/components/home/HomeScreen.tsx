@@ -172,6 +172,22 @@ export function HomeScreen() {
     [logFeed],
   );
 
+  const handleRetroLogBreast = useCallback(
+    async (twin: TwinLabel, side: FeedSide, startTime: string, endTime: string) => {
+      try {
+        const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+        await logFeed(twin, 'breast', {
+          feed_side: side,
+          duration_ms: durationMs,
+          timestamp: startTime,
+        });
+      } catch {
+        // Error surfaced via SyncErrorBanner
+      }
+    },
+    [logFeed],
+  );
+
   const handleRetroLogDiaper = useCallback(
     async (twin: TwinLabel, subtype: DiaperSubtype, timestamp: string) => {
       try {
@@ -307,6 +323,7 @@ export function HomeScreen() {
             onStopTimer={handleStopTimer}
             onSwitchBreast={handleSwitchBreast}
             onRetroLogBottle={handleRetroLogBottle}
+            onRetroLogBreast={handleRetroLogBreast}
             onRetroLogDiaper={handleRetroLogDiaper}
             onRetroLogNap={handleRetroLogNap}
           />
