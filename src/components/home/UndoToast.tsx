@@ -59,8 +59,11 @@ export function UndoToast() {
     setUndoEvent(null);
     try {
       await deleteEvent(undoEvent.id);
-    } catch {
-      // Already removed from local state; server delete failed silently
+    } catch (err) {
+      console.error('[handleUndo] delete failed:', err);
+      const { setSyncError } = useAppStore.getState();
+      const msg = err instanceof Error ? err.message : typeof err === 'object' && err !== null && 'message' in err ? String((err as Record<string, unknown>).message) : String(err);
+      setSyncError(`Delete failed: ${msg}`);
     }
   }, [undoEvent, removeEvent, setUndoEvent]);
 
