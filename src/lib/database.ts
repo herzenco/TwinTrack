@@ -181,12 +181,14 @@ export interface GetEventsParams {
   twinLabel?: TwinLabel;
   type?: EventType;
   loggedByUid?: string;
+  startDate?: string; // ISO timestamp — filter events >= this
+  endDate?: string; // ISO timestamp — filter events <= this
 }
 
 export async function getEvents(
   params: GetEventsParams
 ): Promise<TrackedEvent[]> {
-  const { pairId, from = 0, to = 49, twinLabel, type, loggedByUid } = params;
+  const { pairId, from = 0, to = 49, twinLabel, type, loggedByUid, startDate, endDate } = params;
 
   let query = supabase
     .from('events')
@@ -203,6 +205,12 @@ export async function getEvents(
   }
   if (loggedByUid) {
     query = query.eq('logged_by_uid', loggedByUid);
+  }
+  if (startDate) {
+    query = query.gte('timestamp', startDate);
+  }
+  if (endDate) {
+    query = query.lte('timestamp', endDate);
   }
 
   const { data, error } = await query;

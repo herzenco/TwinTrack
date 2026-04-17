@@ -5,15 +5,17 @@ import { FeedIntervalMonitor } from './FeedIntervalMonitor';
 import { TimelineView } from './TimelineView';
 import { ActivityLog } from './ActivityLog';
 import { DailySummary } from './DailySummary';
+import { ReportsView } from './ReportsView';
 import type { DashboardSummary } from '../../types';
 
-type DashboardTab = 'overview' | 'timeline' | 'activity' | 'daily';
+type DashboardTab = 'overview' | 'timeline' | 'activity' | 'daily' | 'reports';
 
 const TABS: { key: DashboardTab; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'activity', label: 'Activity' },
   { key: 'daily', label: 'Daily' },
+  { key: 'reports', label: 'Reports' },
 ];
 
 export function DashboardView() {
@@ -38,6 +40,12 @@ export function DashboardView() {
       nap_minutes: dayEvents
         .filter((e) => e.type === 'nap' && e.duration_ms)
         .reduce((sum, e) => sum + Math.round((e.duration_ms ?? 0) / 60000), 0),
+      formula_oz: dayEvents
+        .filter((e) => e.type === 'feed' && e.feed_mode === 'bottle' && e.feed_type === 'formula')
+        .reduce((sum, e) => sum + (e.feed_amount ?? 0), 0),
+      breastmilk_oz: dayEvents
+        .filter((e) => e.type === 'feed' && e.feed_mode === 'bottle' && e.feed_type === 'breastmilk')
+        .reduce((sum, e) => sum + (e.feed_amount ?? 0), 0),
     };
   }, [events, pair]);
 
@@ -55,6 +63,12 @@ export function DashboardView() {
       nap_minutes: dayEvents
         .filter((e) => e.type === 'nap' && e.duration_ms)
         .reduce((sum, e) => sum + Math.round((e.duration_ms ?? 0) / 60000), 0),
+      formula_oz: dayEvents
+        .filter((e) => e.type === 'feed' && e.feed_mode === 'bottle' && e.feed_type === 'formula')
+        .reduce((sum, e) => sum + (e.feed_amount ?? 0), 0),
+      breastmilk_oz: dayEvents
+        .filter((e) => e.type === 'feed' && e.feed_mode === 'bottle' && e.feed_type === 'breastmilk')
+        .reduce((sum, e) => sum + (e.feed_amount ?? 0), 0),
     };
   }, [events, pair]);
 
@@ -146,6 +160,10 @@ export function DashboardView() {
 
       {activeTab === 'daily' && (
         <DailySummary events={events} pair={pair} />
+      )}
+
+      {activeTab === 'reports' && (
+        <ReportsView pair={pair} />
       )}
     </div>
   );

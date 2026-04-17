@@ -95,4 +95,6 @@ export interface DashboardSummary {
   feed_count: number;
   diaper_count: number;
   nap_minutes: number;
+  formula_oz: number;
+  breastmilk_oz: number;
 }

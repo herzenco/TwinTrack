@@ -65,6 +65,28 @@ export function SummaryCard({
         </div>
       </div>
 
+      {/* Bottle intake */}
+      {summary && (summary.formula_oz > 0 || summary.breastmilk_oz > 0) && (
+        <div className="flex flex-col gap-1 border-t border-white/5 pt-3 mb-3">
+          <p className="text-[10px] text-text-muted font-medium mb-1">Bottle Intake (24h)</p>
+          <div className="flex items-center justify-between">
+            {summary.formula_oz > 0 && (
+              <span className="text-xs text-text-secondary">
+                Formula: <span className="font-bold text-text-primary">{summary.formula_oz}oz</span>
+              </span>
+            )}
+            {summary.breastmilk_oz > 0 && (
+              <span className="text-xs text-text-secondary">
+                BM: <span className="font-bold text-text-primary">{summary.breastmilk_oz}oz</span>
+              </span>
+            )}
+            <span className="text-xs text-text-secondary">
+              Total: <span className="font-bold text-text-primary">{summary.formula_oz + summary.breastmilk_oz}oz</span>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Time since last */}
       <div className="flex flex-col gap-1 border-t border-white/5 pt-3">
         <div className="flex items-center justify-between">
