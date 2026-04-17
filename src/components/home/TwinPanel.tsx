@@ -12,7 +12,7 @@ interface TwinPanelProps {
   pair: TwinPair;
   timers: ActiveTimer[];
   events: TrackedEvent[];
-  onLogBottle: (twin: TwinLabel, feedType: FeedType, amount: number, unit: 'oz' | 'ml') => void;
+  onLogBottle: (twin: TwinLabel, feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp?: string) => void;
   onStartBreast: (twin: TwinLabel, side: FeedSide) => void;
   onLogDiaper: (twin: TwinLabel, subtype: DiaperSubtype) => void;
   onToggleNap: (twin: TwinLabel) => void;
@@ -89,8 +89,8 @@ export function TwinPanel({
   }, [lastFeed, pair.feed_interval_minutes]);
 
   const handleLogBottle = useCallback(
-    (feedType: FeedType, amount: number, unit: 'oz' | 'ml') => {
-      onLogBottle(label, feedType, amount, unit);
+    (feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp?: string) => {
+      onLogBottle(label, feedType, amount, unit, timestamp);
     },
     [label, onLogBottle],
   );
