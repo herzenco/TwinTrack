@@ -64,12 +64,13 @@ export function HomeScreen() {
   }, []);
 
   const handleLogBottle = useCallback(
-    async (twin: TwinLabel, feedType: FeedType, amount: number, unit: FeedUnit) => {
+    async (twin: TwinLabel, feedType: FeedType, amount: number, unit: FeedUnit, timestamp?: string) => {
       try {
         await logFeed(twin, 'bottle', {
           feed_amount: amount,
           feed_unit: unit,
           feed_type: feedType,
+          timestamp,
         });
       } catch {
         // Error surfaced via SyncErrorBanner

@@ -9,7 +9,7 @@ interface FeedModalProps {
   twinName: string;
   twinColor: string;
   lastBreastSide: FeedSide | null;
-  onLogBottle: (feedType: FeedType, amount: number, unit: 'oz' | 'ml') => void;
+  onLogBottle: (feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp?: string) => void;
   onStartBreast: (side: FeedSide) => void;
 }
 
@@ -29,6 +29,12 @@ export function FeedModal({
   const [amount, setAmount] = useState<number>(3);
   const [customAmount, setCustomAmount] = useState('');
   const [showCustom, setShowCustom] = useState(false);
+  const [startTime, setStartTime] = useState('');
+
+  function nowLocal() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
 
   function resetState() {
     setMode(null);
@@ -36,6 +42,7 @@ export function FeedModal({
     setAmount(3);
     setCustomAmount('');
     setShowCustom(false);
+    setStartTime('');
   }
 
   function handleClose() {
@@ -46,7 +53,8 @@ export function FeedModal({
   function handleLogBottle() {
     const finalAmount = showCustom ? parseFloat(customAmount) || 0 : amount;
     if (finalAmount > 0) {
-      onLogBottle(feedType, finalAmount, 'oz');
+      const ts = startTime ? new Date(startTime).toISOString() : undefined;
+      onLogBottle(feedType, finalAmount, 'oz', ts);
       handleClose();
     }
   }
@@ -170,6 +178,19 @@ export function FeedModal({
                 </button>
               </div>
             )}
+          </div>
+
+          {/* Start time */}
+          <div>
+            <p className="text-sm font-medium text-text-secondary mb-3">Start time</p>
+            <input
+              type="datetime-local"
+              value={startTime || nowLocal()}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full min-h-[52px] px-4 rounded-2xl bg-white/5 text-text-primary
+                         text-base border border-white/10 focus:outline-none focus:border-white/20
+                         [color-scheme:dark]"
+            />
           </div>
 
           {/* Log button */}
