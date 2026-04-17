@@ -15,6 +15,8 @@ interface TwinDaySummary {
   breastLeft: number;
   breastRight: number;
   breastBoth: number;
+  formulaOz: number;
+  breastmilkOz: number;
 }
 
 function isToday(ts: string): boolean {
@@ -43,6 +45,12 @@ function buildSummary(events: TrackedEvent[], dateFn: (ts: string) => boolean, t
     breastLeft: filtered.filter((e) => e.type === 'feed' && e.feed_mode === 'breast' && e.feed_side === 'left').length,
     breastRight: filtered.filter((e) => e.type === 'feed' && e.feed_mode === 'breast' && e.feed_side === 'right').length,
     breastBoth: filtered.filter((e) => e.type === 'feed' && e.feed_mode === 'breast' && e.feed_side === 'both').length,
+    formulaOz: filtered
+      .filter((e) => e.type === 'feed' && e.feed_mode === 'bottle' && e.feed_type === 'formula')
+      .reduce((sum, e) => sum + (e.feed_amount ?? 0), 0),
+    breastmilkOz: filtered
+      .filter((e) => e.type === 'feed' && e.feed_mode === 'bottle' && e.feed_type === 'breastmilk')
+      .reduce((sum, e) => sum + (e.feed_amount ?? 0), 0),
   };
 }
 
@@ -124,6 +132,28 @@ function TwinDayCard({
                 Both: <span className="font-bold text-text-primary">{today.breastBoth}</span>
               </span>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Bottle intake */}
+      {(today.formulaOz > 0 || today.breastmilkOz > 0) && (
+        <div className="border-t border-white/5 pt-3 mb-3">
+          <p className="text-[10px] text-text-muted mb-2 font-medium">Bottle Intake Today</p>
+          <div className="flex gap-3">
+            {today.formulaOz > 0 && (
+              <span className="text-xs text-text-secondary">
+                Formula: <span className="font-bold text-text-primary">{today.formulaOz}oz</span>
+              </span>
+            )}
+            {today.breastmilkOz > 0 && (
+              <span className="text-xs text-text-secondary">
+                BM: <span className="font-bold text-text-primary">{today.breastmilkOz}oz</span>
+              </span>
+            )}
+            <span className="text-xs text-text-secondary">
+              Total: <span className="font-bold text-text-primary">{today.formulaOz + today.breastmilkOz}oz</span>
+            </span>
           </div>
         </div>
       )}
