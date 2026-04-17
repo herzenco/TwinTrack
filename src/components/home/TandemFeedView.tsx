@@ -63,14 +63,13 @@ function TandemTimer({
   const [elapsed, setElapsed] = useState(pauseState.getElapsed());
 
   // Tick
-  useState(() => {
+  useEffect(() => {
+    if (pauseState.paused) return;
     const interval = setInterval(() => {
-      if (!pauseState.paused) {
-        setElapsed(pauseState.getElapsed());
-      }
+      setElapsed(pauseState.getElapsed());
     }, 1000);
     return () => clearInterval(interval);
-  });
+  }, [pauseState.paused, pauseState.getElapsed]);
 
   return (
     <div
