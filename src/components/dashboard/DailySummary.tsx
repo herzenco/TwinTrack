@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { TrackedEvent, TwinPair, TwinLabel } from '../../types';
+import { fmtOz } from '../../utils/formatters';
 
 interface DailySummaryProps {
   events: TrackedEvent[];
@@ -143,16 +144,16 @@ function TwinDayCard({
           <div className="flex gap-3">
             {today.formulaOz > 0 && (
               <span className="text-xs text-text-secondary">
-                Formula: <span className="font-bold text-text-primary">{today.formulaOz}oz</span>
+                Formula: <span className="font-bold text-text-primary">{fmtOz(today.formulaOz)}oz</span>
               </span>
             )}
             {today.breastmilkOz > 0 && (
               <span className="text-xs text-text-secondary">
-                BM: <span className="font-bold text-text-primary">{today.breastmilkOz}oz</span>
+                BM: <span className="font-bold text-text-primary">{fmtOz(today.breastmilkOz)}oz</span>
               </span>
             )}
             <span className="text-xs text-text-secondary">
-              Total: <span className="font-bold text-text-primary">{today.formulaOz + today.breastmilkOz}oz</span>
+              Total: <span className="font-bold text-text-primary">{fmtOz(today.formulaOz + today.breastmilkOz)}oz</span>
             </span>
           </div>
         </div>

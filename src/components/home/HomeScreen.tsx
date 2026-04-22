@@ -7,11 +7,13 @@ import { TandemFeedView } from './TandemFeedView';
 import { ActiveNowBar } from './ActiveNowBar';
 import { BottomSheet } from '../shared/BottomSheet';
 import type { TwinLabel, FeedType, FeedSide, FeedSegment, DiaperSubtype, FeedUnit } from '../../types';
+import { fmtOz } from '../../utils/formatters';
 
 export function HomeScreen() {
   const pair = useAppStore((s) => s.activePair);
   const timers = useAppStore((s) => s.activeTimers);
   const events = useAppStore((s) => s.recentEvents);
+  const pumpingSessions = useAppStore((s) => s.pumpingSessions);
 
   const { logFeed, logDiaper, logNap } = useEvents();
   const { startTimer, stopTimer, switchSide } = useActiveTimers();
@@ -241,6 +243,20 @@ export function HomeScreen() {
   // Check if either twin already has a feed timer (can't start tandem)
   const anyFeedTimerActive = !!feedTimerA || !!feedTimerB;
 
+  // Pumping & BM balance for today
+  const pumpBmSummary = useMemo(() => {
+    const today = new Date().toDateString();
+    const todayPumps = pumpingSessions.filter((s) => new Date(s.timestamp).toDateString() === today);
+    const pumpedOz = todayPumps.reduce((sum, s) => sum + s.total_oz, 0);
+
+    const todayEvents = events.filter((e) => new Date(e.timestamp).toDateString() === today);
+    const bmBottleFedOz = todayEvents
+      .filter((e) => e.type === 'feed' && e.feed_mode === 'bottle' && e.feed_type === 'breastmilk')
+      .reduce((sum, e) => sum + (e.feed_amount ?? 0), 0);
+
+    return { pumpedOz, bmBottleFedOz, estimatedRemaining: Math.max(0, pumpedOz - bmBottleFedOz) };
+  }, [pumpingSessions, events]);
+
   // Timers for the twin NOT currently shown on mobile
   const otherTwinTimers = timers.filter((t) => t.twin_label !== activeTwin);
 
@@ -311,28 +327,68 @@ export function HomeScreen() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="p-3 h-full">
-          <TwinPanel
-            label={activeTwin}
-            pair={pair}
-            timers={timers}
-            events={events}
-            onLogBottle={handleLogBottle}
-            onStartBreast={handleStartBreast}
-            onLogDiaper={handleLogDiaper}
-            onToggleNap={handleToggleNap}
-            onStopTimer={handleStopTimer}
-            onSwitchBreast={handleSwitchBreast}
-            onRetroLogBottle={handleRetroLogBottle}
-            onRetroLogBreast={handleRetroLogBreast}
-            onRetroLogDiaper={handleRetroLogDiaper}
-            onRetroLogNap={handleRetroLogNap}
-          />
+        <div className="p-3 flex flex-col gap-3 min-h-full">
+          {/* Breast Milk Today */}
+          <div className="rounded-2xl bg-bg-card/60 border border-white/[0.06] px-4 py-3 flex items-center gap-4">
+            <span className="text-xl">🤱</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1">Breast Milk Today</p>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-text-secondary">
+                  Pumped: <span className="font-bold text-text-primary">{fmtOz(pumpBmSummary.pumpedOz)}oz</span>
+                </span>
+                <span className="text-text-secondary">
+                  Fed: <span className="font-bold text-text-primary">{fmtOz(pumpBmSummary.bmBottleFedOz)}oz</span>
+                </span>
+                <span className="text-text-secondary">
+                  Remaining: <span className="font-bold text-success">{fmtOz(pumpBmSummary.estimatedRemaining)}oz</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0">
+            <TwinPanel
+              label={activeTwin}
+              pair={pair}
+              timers={timers}
+              events={events}
+              onLogBottle={handleLogBottle}
+              onStartBreast={handleStartBreast}
+              onLogDiaper={handleLogDiaper}
+              onToggleNap={handleToggleNap}
+              onStopTimer={handleStopTimer}
+              onSwitchBreast={handleSwitchBreast}
+              onRetroLogBottle={handleRetroLogBottle}
+              onRetroLogBreast={handleRetroLogBreast}
+              onRetroLogDiaper={handleRetroLogDiaper}
+              onRetroLogNap={handleRetroLogNap}
+            />
+          </div>
         </div>
       </div>
 
       {/* Tablet+: side by side with tandem button */}
-      <div className="hidden md:flex flex-col flex-1 min-h-0 p-3 gap-3">
+      <div className="hidden md:flex flex-col flex-1 min-h-0 p-3 gap-3 overflow-y-auto">
+        {/* Breast Milk Today — tablet */}
+        <div className="rounded-2xl bg-bg-card/60 border border-white/[0.06] px-4 py-3 flex items-center gap-4">
+          <span className="text-xl">🤱</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1">Breast Milk Today</p>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="text-text-secondary">
+                Pumped: <span className="font-bold text-text-primary">{fmtOz(pumpBmSummary.pumpedOz)}oz</span>
+              </span>
+              <span className="text-text-secondary">
+                Fed: <span className="font-bold text-text-primary">{fmtOz(pumpBmSummary.bmBottleFedOz)}oz</span>
+              </span>
+              <span className="text-text-secondary">
+                Remaining: <span className="font-bold text-success">{fmtOz(pumpBmSummary.estimatedRemaining)}oz</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
         {!anyFeedTimerActive && (
           <button
             onClick={() => setTandemSheetOpen(true)}

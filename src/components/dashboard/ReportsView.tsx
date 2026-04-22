@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { TwinPair, TwinLabel, TrackedEvent } from '../../types';
 import { getEvents } from '../../lib/database';
-import { formatFeedDetails, formatDiaperType, formatNapDuration } from '../../utils/formatters';
+import { formatFeedDetails, formatDiaperType, formatNapDuration, fmtOz } from '../../utils/formatters';
 
 interface ReportsViewProps {
   pair: TwinPair;
@@ -123,7 +123,7 @@ export function ReportsView({ pair }: ReportsViewProps) {
         getDetail(event),
         durationMin,
         event.feed_side ?? '',
-        event.feed_amount ? `${event.feed_amount}${event.feed_unit ?? ''}` : '',
+        event.feed_amount ? `${fmtOz(event.feed_amount)}${event.feed_unit ?? ''}` : '',
         event.note_text ?? '',
         event.logged_by_name,
       ].map((v) => escapeCsv(String(v)));
@@ -238,7 +238,7 @@ export function ReportsView({ pair }: ReportsViewProps) {
                 <p className="text-xs font-semibold text-text-secondary mb-2">Feed Breakdown</p>
                 <div className="flex gap-4 text-xs text-text-muted">
                   {summary.bottleFeeds > 0 && (
-                    <span>Bottle: {summary.bottleFeeds} ({summary.totalBottleOz}oz total)</span>
+                    <span>Bottle: {summary.bottleFeeds} ({fmtOz(summary.totalBottleOz)}oz total)</span>
                   )}
                   {summary.breastFeeds > 0 && (
                     <span>Breast: {summary.breastFeeds} ({formatDurationMin(summary.totalBreastMs)} total)</span>

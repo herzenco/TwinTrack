@@ -6,6 +6,7 @@ import { FeedModal } from './FeedModal';
 import { RetroLogModal } from './RetroLogModal';
 import { NudgeBanner } from './NudgeBanner';
 import { formatTime } from '../../utils/time';
+import { fmtOz } from '../../utils/formatters';
 
 interface TwinPanelProps {
   label: TwinLabel;
@@ -276,7 +277,7 @@ export function TwinPanel({
                   {lastFeed.feed_mode === 'breast' && lastFeed.feed_side && (
                     <> · Started {lastFeed.feed_side === 'left' ? 'L' : lastFeed.feed_side === 'right' ? 'R' : 'Both'}</>
                   )}
-                  {lastFeed.feed_amount ? ` · ${lastFeed.feed_amount}${lastFeed.feed_unit}` : ''}
+                  {lastFeed.feed_amount ? ` · ${fmtOz(lastFeed.feed_amount)}${lastFeed.feed_unit}` : ''}
                 </span>
               )}
             </div>
