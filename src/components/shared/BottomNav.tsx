@@ -24,6 +24,19 @@ const tabs = [
     ),
   },
   {
+    path: '/pumping',
+    label: 'Pumping',
+    icon: (active: boolean) => (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={active ? '#F0F0F5' : '#5A5E70'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 2v4" />
+        <path d="M16 2v4" />
+        <rect x="6" y="6" width="12" height="14" rx="2" />
+        <path d="M12 10v6" />
+        <path d="M9 13h6" />
+      </svg>
+    ),
+  },
+  {
     path: '/settings',
     label: 'Settings',
     icon: (active: boolean) => (

@@ -90,6 +90,20 @@ export interface UserProfile {
   created_at: string;
 }
 
+export interface PumpingSession {
+  id: string;
+  pair_id: string;
+  timestamp: string;
+  duration_minutes: number;
+  left_oz: number;
+  right_oz: number;
+  total_oz: number;
+  note: string | null;
+  logged_by_uid: string;
+  logged_by_name: string;
+  created_at: string;
+}
+
 export interface DashboardSummary {
   twin_label: TwinLabel;
   feed_count: number;

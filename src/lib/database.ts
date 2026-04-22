@@ -7,6 +7,7 @@ import type {
   Invite,
   UserProfile,
   DashboardSummary,
+  PumpingSession,
   TwinLabel,
   EventType,
   FeedMode,
@@ -391,6 +392,73 @@ export async function redeemInvite(
 
   if (error) throw error;
   return data as RedeemInviteResult;
+}
+
+// ---------------------------------------------------------------------------
+// Pumping Sessions
+// ---------------------------------------------------------------------------
+
+export interface CreatePumpingParams {
+  pair_id: string;
+  timestamp?: string;
+  duration_minutes: number;
+  left_oz: number;
+  right_oz: number;
+  note?: string | null;
+  logged_by_uid: string;
+  logged_by_name: string;
+}
+
+export async function createPumpingSession(
+  params: CreatePumpingParams
+): Promise<PumpingSession> {
+  const { data, error } = await supabase
+    .from('pumping_sessions')
+    .insert(params)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PumpingSession;
+}
+
+export async function getPumpingSessions(
+  pairId: string,
+  limit = 50
+): Promise<PumpingSession[]> {
+  const { data, error } = await supabase
+    .from('pumping_sessions')
+    .select('*')
+    .eq('pair_id', pairId)
+    .order('timestamp', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as PumpingSession[];
+}
+
+export async function updatePumpingSession(
+  sessionId: string,
+  updates: Partial<Pick<PumpingSession, 'timestamp' | 'duration_minutes' | 'left_oz' | 'right_oz' | 'note'>>
+): Promise<PumpingSession> {
+  const { data, error } = await supabase
+    .from('pumping_sessions')
+    .update(updates)
+    .eq('id', sessionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as PumpingSession;
+}
+
+export async function deletePumpingSession(sessionId: string): Promise<void> {
+  const { error } = await supabase
+    .from('pumping_sessions')
+    .delete()
+    .eq('id', sessionId);
+
+  if (error) throw error;
 }
 
 // ---------------------------------------------------------------------------
