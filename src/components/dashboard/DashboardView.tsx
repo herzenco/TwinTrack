@@ -6,6 +6,7 @@ import { TimelineView } from './TimelineView';
 import { ActivityLog } from './ActivityLog';
 import { DailySummary } from './DailySummary';
 import { ReportsView } from './ReportsView';
+import { fmtOz } from '../../utils/formatters';
 import type { DashboardSummary } from '../../types';
 
 type DashboardTab = 'overview' | 'timeline' | 'activity' | 'daily' | 'reports';
@@ -24,6 +25,21 @@ export function DashboardView() {
   const events = useAppStore((s) => s.recentEvents);
   const timers = useAppStore((s) => s.activeTimers);
   const members = useAppStore((s) => s.pairMembers);
+  const pumpingSessions = useAppStore((s) => s.pumpingSessions);
+
+  // Pumping & BM balance for today
+  const pumpBmSummary = useMemo(() => {
+    const today = new Date().toDateString();
+    const todayPumps = pumpingSessions.filter((s) => new Date(s.timestamp).toDateString() === today);
+    const pumpedOz = todayPumps.reduce((sum, s) => sum + s.total_oz, 0);
+
+    const todayEvents = events.filter((e) => new Date(e.timestamp).toDateString() === today);
+    const bmBottleFedOz = todayEvents
+      .filter((e) => e.type === 'feed' && e.feed_mode === 'bottle' && e.feed_type === 'breastmilk')
+      .reduce((sum, e) => sum + (e.feed_amount ?? 0), 0);
+
+    return { pumpedOz, bmBottleFedOz, estimatedRemaining: Math.max(0, pumpedOz - bmBottleFedOz) };
+  }, [pumpingSessions, events]);
 
   // TODO: fetch from get_dashboard_summary RPC
   const summaryA: DashboardSummary | null = useMemo(() => {
@@ -146,6 +162,25 @@ export function DashboardView() {
             <h2 className="text-sm font-semibold text-text-secondary">Feed Interval</h2>
             <FeedIntervalMonitor label="A" pair={pair} lastFeedTimestamp={lastFeedA} />
             <FeedIntervalMonitor label="B" pair={pair} lastFeedTimestamp={lastFeedB} />
+          </div>
+
+          {/* Breast milk balance */}
+          <div className="rounded-2xl bg-bg-card/80 border border-white/10 p-4">
+            <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-3">Breast Milk Today</p>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-2xl font-bold text-text-primary">{fmtOz(pumpBmSummary.pumpedOz)}<span className="text-sm font-normal text-text-muted">oz</span></p>
+                <p className="text-[10px] text-text-secondary font-medium">Pumped</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-text-primary">{fmtOz(pumpBmSummary.bmBottleFedOz)}<span className="text-sm font-normal text-text-muted">oz</span></p>
+                <p className="text-[10px] text-text-secondary font-medium">BM Fed</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-success">{fmtOz(pumpBmSummary.estimatedRemaining)}<span className="text-sm font-normal text-success/60">oz</span></p>
+                <p className="text-[10px] text-text-secondary font-medium">~Remaining</p>
+              </div>
+            </div>
           </div>
         </div>
       )}

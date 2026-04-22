@@ -13,9 +13,13 @@ import { JoinInvitePage } from './components/auth/JoinInvitePage';
 import { HomeScreen } from './components/home/HomeScreen';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { SettingsView } from './components/settings/SettingsView';
+import { PumpingView } from './components/pumping/PumpingView';
 import { UndoToast } from './components/home/UndoToast';
 import { SyncErrorBanner } from './components/shared/SyncErrorBanner';
 import { UpdatePrompt } from './components/shared/UpdatePrompt';
+import { useEffect } from 'react';
+import { useAppStore } from './store/appStore';
+import { getPumpingSessions } from './lib/database';
 
 function AuthenticatedApp() {
   const { profile } = useAuth();
@@ -27,6 +31,13 @@ function AuthenticatedApp() {
   useEvents();
   useActiveTimers();
   useRealtime();
+
+  // Load pumping sessions globally
+  const setPumpingSessions = useAppStore((s) => s.setPumpingSessions);
+  useEffect(() => {
+    if (!pair) return;
+    getPumpingSessions(pair.id).then(setPumpingSessions).catch(() => {});
+  }, [pair, setPumpingSessions]);
 
   const isJoinRoute = location.pathname.startsWith('/join/');
 
@@ -65,6 +76,7 @@ function AuthenticatedApp() {
         <Routes>
           <Route path="/" element={<HomeScreen />} />
           <Route path="/dashboard" element={<DashboardView />} />
+          <Route path="/pumping" element={<PumpingView />} />
           <Route path="/settings" element={<SettingsView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -1,5 +1,6 @@
 import type { DashboardSummary, TwinPair, TwinLabel, ActiveTimer } from '../../types';
 import { formatTimeAgo } from '../../utils/time';
+import { fmtOz } from '../../utils/formatters';
 
 interface SummaryCardProps {
   label: TwinLabel;
@@ -72,16 +73,16 @@ export function SummaryCard({
           <div className="flex items-center justify-between">
             {summary.formula_oz > 0 && (
               <span className="text-xs text-text-secondary">
-                Formula: <span className="font-bold text-text-primary">{summary.formula_oz}oz</span>
+                Formula: <span className="font-bold text-text-primary">{fmtOz(summary.formula_oz)}oz</span>
               </span>
             )}
             {summary.breastmilk_oz > 0 && (
               <span className="text-xs text-text-secondary">
-                BM: <span className="font-bold text-text-primary">{summary.breastmilk_oz}oz</span>
+                BM: <span className="font-bold text-text-primary">{fmtOz(summary.breastmilk_oz)}oz</span>
               </span>
             )}
             <span className="text-xs text-text-secondary">
-              Total: <span className="font-bold text-text-primary">{summary.formula_oz + summary.breastmilk_oz}oz</span>
+              Total: <span className="font-bold text-text-primary">{fmtOz(summary.formula_oz + summary.breastmilk_oz)}oz</span>
             </span>
           </div>
         </div>

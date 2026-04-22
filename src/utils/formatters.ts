@@ -1,5 +1,10 @@
 import type { DiaperSubtype, FeedMode, FeedSegment, FeedSide, FeedType, FeedUnit } from '../types';
 
+export function fmtOz(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return rounded % 1 === 0 ? String(rounded) : rounded.toFixed(1);
+}
+
 export function formatFeedDetails(
   mode: FeedMode | null,
   amount: number | null,
@@ -12,7 +17,7 @@ export function formatFeedDetails(
   if (mode === 'bottle') {
     const parts: string[] = [];
     if (feedType) parts.push(feedType === 'breastmilk' ? 'BM' : 'Formula');
-    if (amount && unit) parts.push(`${amount}${unit}`);
+    if (amount && unit) parts.push(`${fmtOz(amount)}${unit}`);
     return parts.join(' · ') || 'Bottle';
   }
   if (mode === 'breast') {

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { TrackedEvent, TwinPair, TwinLabel, EventType, FeedMode, FeedType, FeedSide, DiaperSubtype } from '../../types';
 import { formatTime } from '../../utils/time';
-import { formatFeedDetails, formatDiaperType, formatNapDuration } from '../../utils/formatters';
+import { formatFeedDetails, formatDiaperType, formatNapDuration, fmtOz } from '../../utils/formatters';
 import { BottomSheet } from '../shared/BottomSheet';
 import { useAppStore } from '../../store/appStore';
 import { deleteEvent, updateEvent } from '../../lib/database';
@@ -79,7 +79,7 @@ export function ActivityLog({ events, pair, caregivers }: ActivityLogProps) {
         getDetail(event),
         durationMin,
         event.feed_side ?? '',
-        event.feed_amount ? `${event.feed_amount}${event.feed_unit ?? ''}` : '',
+        event.feed_amount ? `${fmtOz(event.feed_amount)}${event.feed_unit ?? ''}` : '',
         event.note_text ?? '',
         event.logged_by_name,
       ].map((v) => escapeCsv(String(v)));

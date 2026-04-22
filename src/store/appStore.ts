@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TwinPair, UserProfile, ActiveTimer, TrackedEvent, PairMember } from '../types';
+import type { TwinPair, UserProfile, ActiveTimer, TrackedEvent, PairMember, PumpingSession } from '../types';
 
 interface AppState {
   // Auth
@@ -26,6 +26,13 @@ interface AppState {
   setRecentEvents: (events: TrackedEvent[]) => void;
   addEvent: (event: TrackedEvent) => void;
   removeEvent: (eventId: string) => void;
+
+  // Pumping
+  pumpingSessions: PumpingSession[];
+  setPumpingSessions: (sessions: PumpingSession[]) => void;
+  addPumpingSession: (session: PumpingSession) => void;
+  removePumpingSession: (sessionId: string) => void;
+  updatePumpingSession: (sessionId: string, updates: Partial<PumpingSession>) => void;
 
   // UI
   undoEvent: TrackedEvent | null;
@@ -73,6 +80,22 @@ export const useAppStore = create<AppState>((set) => ({
   removeEvent: (eventId) =>
     set((state) => ({
       recentEvents: state.recentEvents.filter((e) => e.id !== eventId),
+    })),
+
+  // Pumping
+  pumpingSessions: [],
+  setPumpingSessions: (pumpingSessions) => set({ pumpingSessions }),
+  addPumpingSession: (session) =>
+    set((state) => ({ pumpingSessions: [session, ...state.pumpingSessions] })),
+  removePumpingSession: (sessionId) =>
+    set((state) => ({
+      pumpingSessions: state.pumpingSessions.filter((s) => s.id !== sessionId),
+    })),
+  updatePumpingSession: (sessionId, updates) =>
+    set((state) => ({
+      pumpingSessions: state.pumpingSessions.map((s) =>
+        s.id === sessionId ? { ...s, ...updates } : s
+      ),
     })),
 
   // UI
