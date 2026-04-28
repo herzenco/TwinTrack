@@ -29,6 +29,8 @@ export interface CreateTwinPairParams {
   twin_b_color?: string;
   twin_b_emoji?: string;
   feed_interval_minutes?: number;
+  twin_a_feed_interval_minutes?: number;
+  twin_b_feed_interval_minutes?: number;
   timezone?: string;
   encryption_key_hash?: string;
   encryption_salt?: string;
@@ -93,6 +95,8 @@ export async function updateTwinPair(
       | 'twin_b_color'
       | 'twin_b_emoji'
       | 'feed_interval_minutes'
+      | 'twin_a_feed_interval_minutes'
+      | 'twin_b_feed_interval_minutes'
       | 'nap_nudge_minutes'
       | 'feed_nudge_minutes'
       | 'timezone'

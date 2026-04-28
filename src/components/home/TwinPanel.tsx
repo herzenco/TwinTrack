@@ -36,6 +36,27 @@ function getNextFeedTime(lastFeedTimestamp: string, intervalMinutes: number): { 
   };
 }
 
+function getFeedSchedule(
+  lastFeedTimestamp: string,
+  intervalMinutes: number,
+  count: number,
+): { time: string; diffMin: number; overdue: boolean }[] {
+  const baseMs = new Date(lastFeedTimestamp).getTime();
+  const intervalMs = intervalMinutes * 60000;
+  const now = Date.now();
+  const schedule: { time: string; diffMin: number; overdue: boolean }[] = [];
+  for (let i = 1; i <= count; i++) {
+    const feedMs = baseMs + intervalMs * i;
+    const diffMin = Math.round((feedMs - now) / 60000);
+    schedule.push({
+      time: formatTime(new Date(feedMs).toISOString()),
+      diffMin,
+      overdue: diffMin < 0,
+    });
+  }
+  return schedule;
+}
+
 export function TwinPanel({
   label,
   pair,
@@ -84,10 +105,17 @@ export function TwinPanel({
     return breastFeed?.feed_side ?? null;
   }, [events, label]);
 
+  const feedIntervalMin = (isA ? pair.twin_a_feed_interval_minutes : pair.twin_b_feed_interval_minutes) ?? pair.feed_interval_minutes;
+
   const nextFeed = useMemo(() => {
     if (!lastFeed) return null;
-    return getNextFeedTime(lastFeed.timestamp, pair.feed_interval_minutes);
-  }, [lastFeed, pair.feed_interval_minutes]);
+    return getNextFeedTime(lastFeed.timestamp, feedIntervalMin);
+  }, [lastFeed, feedIntervalMin]);
+
+  const feedSchedule = useMemo(() => {
+    if (!lastFeed) return [];
+    return getFeedSchedule(lastFeed.timestamp, feedIntervalMin, 4);
+  }, [lastFeed, feedIntervalMin]);
 
   const handleLogBottle = useCallback(
     (feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp?: string) => {
@@ -324,7 +352,7 @@ export function TwinPanel({
             )}
           </div>
 
-          {/* Next feed */}
+          {/* Feed schedule */}
           <div
             className="rounded-xl px-4 py-3 border"
             style={{
@@ -332,17 +360,38 @@ export function TwinPanel({
               borderColor: nextFeed?.overdue ? 'rgba(248,113,113,0.15)' : 'rgba(74,222,128,0.1)',
             }}
           >
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Next Feed</span>
-            {nextFeed ? (
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className={`text-lg font-bold font-mono ${nextFeed.overdue ? 'text-danger' : 'text-success'}`}>
-                  {nextFeed.time}
-                </span>
-                <span className={`text-xs font-semibold ${nextFeed.overdue ? 'text-danger' : 'text-success'}`}>
-                  {nextFeed.overdue
-                    ? `${Math.abs(nextFeed.diffMin)}min overdue`
-                    : `in ${nextFeed.diffMin}min`}
-                </span>
+            <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Feed Schedule</span>
+            {feedSchedule.length > 0 ? (
+              <div className="flex flex-col gap-1.5 mt-2">
+                {feedSchedule.map((feed, i) => {
+                  const isNext = i === 0;
+                  const label = isNext ? 'Next' : `+${i}`;
+                  return (
+                    <div key={i} className="flex items-baseline gap-2">
+                      <span className={`text-[10px] font-bold uppercase w-8 shrink-0 ${
+                        isNext
+                          ? feed.overdue ? 'text-danger' : 'text-success'
+                          : 'text-text-muted'
+                      }`}>
+                        {label}
+                      </span>
+                      <span className={`font-mono font-bold ${
+                        isNext
+                          ? `text-lg ${feed.overdue ? 'text-danger' : 'text-success'}`
+                          : 'text-sm text-text-secondary'
+                      }`}>
+                        {feed.time}
+                      </span>
+                      {isNext && (
+                        <span className={`text-xs font-semibold ${feed.overdue ? 'text-danger' : 'text-success'}`}>
+                          {feed.overdue
+                            ? `${Math.abs(feed.diffMin)}min overdue`
+                            : `in ${feed.diffMin}min`}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <span className="text-sm text-text-muted mt-1 block">No feeds yet</span>

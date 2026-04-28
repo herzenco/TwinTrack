@@ -36,6 +36,8 @@ export function OnboardingFlow() {
         twin_a_color: colorA,
         twin_b_color: colorB,
         feed_interval_minutes: feedInterval,
+        twin_a_feed_interval_minutes: feedInterval,
+        twin_b_feed_interval_minutes: feedInterval,
       });
       setActivePair(pair);
       await refreshProfile();

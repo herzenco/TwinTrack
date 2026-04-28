@@ -30,6 +30,7 @@ export function FeedModal({
   const [customAmount, setCustomAmount] = useState('');
   const [showCustom, setShowCustom] = useState(false);
   const [startTime, setStartTime] = useState('');
+  const [showFutureConfirm, setShowFutureConfirm] = useState(false);
 
   function nowLocal() {
     const d = new Date();
@@ -43,6 +44,7 @@ export function FeedModal({
     setCustomAmount('');
     setShowCustom(false);
     setStartTime('');
+    setShowFutureConfirm(false);
   }
 
   function handleClose() {
@@ -50,13 +52,23 @@ export function FeedModal({
     onClose();
   }
 
+  function isFutureTime(timeStr: string): boolean {
+    if (!timeStr) return false;
+    return new Date(timeStr).getTime() > Date.now();
+  }
+
   function handleLogBottle() {
     const finalAmount = showCustom ? parseFloat(customAmount) || 0 : amount;
-    if (finalAmount > 0) {
-      const ts = startTime ? new Date(startTime).toISOString() : undefined;
-      onLogBottle(feedType, finalAmount, 'oz', ts);
-      handleClose();
+    if (finalAmount <= 0) return;
+
+    if (isFutureTime(startTime) && !showFutureConfirm) {
+      setShowFutureConfirm(true);
+      return;
     }
+
+    const ts = startTime ? new Date(startTime).toISOString() : undefined;
+    onLogBottle(feedType, finalAmount, 'oz', ts);
+    handleClose();
   }
 
   function handleStartBreast(side: FeedSide) {
@@ -186,21 +198,48 @@ export function FeedModal({
             <input
               type="datetime-local"
               value={startTime || nowLocal()}
-              onChange={(e) => setStartTime(e.target.value)}
+              onChange={(e) => { setStartTime(e.target.value); setShowFutureConfirm(false); }}
               className="w-full min-h-[52px] px-4 rounded-2xl bg-white/5 text-text-primary
                          text-base border border-white/10 focus:outline-none focus:border-white/20
                          [color-scheme:dark]"
             />
           </div>
 
+          {/* Future time confirmation */}
+          {showFutureConfirm && (
+            <div className="rounded-2xl bg-yellow-500/10 border border-yellow-500/30 p-4 flex flex-col gap-3">
+              <p className="text-sm text-yellow-300 font-medium">
+                This time is in the future. Log anyway?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowFutureConfirm(false)}
+                  className="flex-1 min-h-[48px] rounded-xl bg-white/5 text-text-secondary font-semibold
+                             hover:bg-white/10 active:scale-95 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLogBottle}
+                  className="flex-1 min-h-[48px] rounded-xl bg-yellow-500/20 text-yellow-300 font-semibold
+                             hover:bg-yellow-500/30 active:scale-95 transition-all"
+                >
+                  Log Future Feed
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Log button */}
-          <button
-            onClick={handleLogBottle}
-            className="min-h-[72px] rounded-2xl text-lg font-bold active:scale-[0.97] transition-all text-[#0F1117]"
-            style={{ backgroundColor: twinColor }}
-          >
-            Log {showCustom ? customAmount || '0' : amount}oz {feedType === 'formula' ? 'Formula' : 'BM'}
-          </button>
+          {!showFutureConfirm && (
+            <button
+              onClick={handleLogBottle}
+              className="min-h-[72px] rounded-2xl text-lg font-bold active:scale-[0.97] transition-all text-[#0F1117]"
+              style={{ backgroundColor: twinColor }}
+            >
+              Log {showCustom ? customAmount || '0' : amount}oz {feedType === 'formula' ? 'Formula' : 'BM'}
+            </button>
+          )}
         </div>
       )}
 
