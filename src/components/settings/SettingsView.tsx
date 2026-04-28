@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppStore } from '../../store/appStore';
-import { createInvite } from '../../lib/database';
+import { createInvite, updateTwinPair } from '../../lib/database';
 import { TwinConfig } from './TwinConfig';
 import { MemberManagement } from './MemberManagement';
 import { InviteCode } from './InviteCode';
@@ -16,7 +16,16 @@ export function SettingsView() {
     (m) => m.user_id === user?.id && m.role === 'owner',
   );
 
-  const [feedInterval, setFeedInterval] = useState(pair?.feed_interval_minutes ?? 180);
+  const pairIntervalA = pair?.twin_a_feed_interval_minutes ?? pair?.feed_interval_minutes ?? 180;
+  const pairIntervalB = pair?.twin_b_feed_interval_minutes ?? pair?.feed_interval_minutes ?? 180;
+
+  const [intervalMode, setIntervalMode] = useState<'both' | 'individual'>(
+    pairIntervalA !== pairIntervalB ? 'individual' : 'both',
+  );
+  const [feedIntervalBoth, setFeedIntervalBoth] = useState(pairIntervalA);
+  const [feedIntervalA, setFeedIntervalA] = useState(pairIntervalA);
+  const [feedIntervalB, setFeedIntervalB] = useState(pairIntervalB);
+  const [savingInterval, setSavingInterval] = useState(false);
 
   function handleSaveTwinConfig(updates: Partial<TwinPair>) {
     if (!pair) return;
@@ -25,11 +34,35 @@ export function SettingsView() {
     // TODO: persist via lib/database.ts
   }
 
-  function handleSaveFeedInterval() {
+  const intervalDirty = pair
+    ? intervalMode === 'both'
+      ? feedIntervalBoth !== pairIntervalA || feedIntervalBoth !== pairIntervalB
+      : feedIntervalA !== pairIntervalA || feedIntervalB !== pairIntervalB
+    : false;
+
+  async function handleSaveFeedInterval() {
     if (!pair) return;
-    const updated = { ...pair, feed_interval_minutes: feedInterval };
-    setActivePair(updated);
-    // TODO: persist via lib/database.ts
+    const aVal = intervalMode === 'both' ? feedIntervalBoth : feedIntervalA;
+    const bVal = intervalMode === 'both' ? feedIntervalBoth : feedIntervalB;
+    setSavingInterval(true);
+    try {
+      const updated = await updateTwinPair(pair.id, {
+        twin_a_feed_interval_minutes: aVal,
+        twin_b_feed_interval_minutes: bVal,
+        feed_interval_minutes: aVal, // keep legacy column in sync
+      });
+      setActivePair(updated);
+    } catch {
+      // Optimistic fallback
+      setActivePair({
+        ...pair,
+        twin_a_feed_interval_minutes: aVal,
+        twin_b_feed_interval_minutes: bVal,
+        feed_interval_minutes: aVal,
+      });
+    } finally {
+      setSavingInterval(false);
+    }
   }
 
   function handleRevokeMember(memberId: string) {
@@ -69,31 +102,117 @@ export function SettingsView() {
         <p className="text-xs text-text-muted mb-4">
           How often should each twin be fed? The dashboard will alert you when a feed is overdue.
         </p>
-        <div className="flex items-center gap-4">
-          <input
-            type="range"
-            min={90}
-            max={240}
-            step={15}
-            value={feedInterval}
-            onChange={(e) => setFeedInterval(Number(e.target.value))}
-            className="flex-1 accent-text-primary"
-          />
-          <span className="text-sm font-mono text-text-primary w-14 text-right">
-            {feedInterval / 60}h
-          </span>
+
+        {/* Mode toggle */}
+        <div className="flex rounded-xl bg-white/5 p-1 mb-4">
+          <button
+            onClick={() => {
+              setIntervalMode('both');
+              setFeedIntervalBoth(feedIntervalA);
+            }}
+            className={`flex-1 min-h-[40px] rounded-lg text-xs font-semibold transition-all
+              ${intervalMode === 'both'
+                ? 'bg-white/10 text-text-primary'
+                : 'text-text-muted hover:text-text-secondary'}`}
+          >
+            Both Twins
+          </button>
+          <button
+            onClick={() => setIntervalMode('individual')}
+            className={`flex-1 min-h-[40px] rounded-lg text-xs font-semibold transition-all
+              ${intervalMode === 'individual'
+                ? 'bg-white/10 text-text-primary'
+                : 'text-text-muted hover:text-text-secondary'}`}
+          >
+            Individual
+          </button>
         </div>
-        <div className="flex justify-between text-[10px] text-text-muted mt-1">
-          <span>1.5h</span>
-          <span>4h</span>
-        </div>
-        {feedInterval !== pair.feed_interval_minutes && (
+
+        {intervalMode === 'both' ? (
+          <div>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min={90}
+                max={240}
+                step={15}
+                value={feedIntervalBoth}
+                onChange={(e) => setFeedIntervalBoth(Number(e.target.value))}
+                className="flex-1 accent-text-primary"
+              />
+              <span className="text-sm font-mono text-text-primary w-14 text-right">
+                {feedIntervalBoth / 60}h
+              </span>
+            </div>
+            <div className="flex justify-between text-[10px] text-text-muted mt-1">
+              <span>1.5h</span>
+              <span>4h</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {/* Twin A */}
+            <div>
+              <p className="text-xs font-semibold mb-2" style={{ color: pair.twin_a_color }}>
+                {pair.twin_a_name}
+              </p>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min={90}
+                  max={240}
+                  step={15}
+                  value={feedIntervalA}
+                  onChange={(e) => setFeedIntervalA(Number(e.target.value))}
+                  className="flex-1"
+                  style={{ accentColor: pair.twin_a_color }}
+                />
+                <span className="text-sm font-mono text-text-primary w-14 text-right">
+                  {feedIntervalA / 60}h
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px] text-text-muted mt-1">
+                <span>1.5h</span>
+                <span>4h</span>
+              </div>
+            </div>
+
+            {/* Twin B */}
+            <div>
+              <p className="text-xs font-semibold mb-2" style={{ color: pair.twin_b_color }}>
+                {pair.twin_b_name}
+              </p>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min={90}
+                  max={240}
+                  step={15}
+                  value={feedIntervalB}
+                  onChange={(e) => setFeedIntervalB(Number(e.target.value))}
+                  className="flex-1"
+                  style={{ accentColor: pair.twin_b_color }}
+                />
+                <span className="text-sm font-mono text-text-primary w-14 text-right">
+                  {feedIntervalB / 60}h
+                </span>
+              </div>
+              <div className="flex justify-between text-[10px] text-text-muted mt-1">
+                <span>1.5h</span>
+                <span>4h</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {intervalDirty && (
           <button
             onClick={handleSaveFeedInterval}
-            className="mt-3 min-h-[40px] w-full rounded-lg bg-white/8 text-text-primary text-xs font-semibold
-                       hover:bg-white/12 active:scale-95 transition-all"
+            disabled={savingInterval}
+            className="mt-4 min-h-[40px] w-full rounded-lg bg-white/8 text-text-primary text-xs font-semibold
+                       hover:bg-white/12 active:scale-95 transition-all disabled:opacity-40"
           >
-            Save Interval
+            {savingInterval ? 'Saving...' : 'Save Interval'}
           </button>
         )}
       </section>

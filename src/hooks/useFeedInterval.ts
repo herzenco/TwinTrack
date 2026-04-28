@@ -27,10 +27,12 @@ export function useFeedInterval(): {
   const { activePair, recentEvents } = useAppStore();
 
   return useMemo(() => {
-    const intervalMinutes = activePair?.feed_interval_minutes ?? 180;
     const now = new Date();
 
     function computeForTwin(twinLabel: TwinLabel): FeedIntervalInfo {
+      const intervalMinutes = twinLabel === 'A'
+        ? (activePair?.twin_a_feed_interval_minutes ?? activePair?.feed_interval_minutes ?? 180)
+        : (activePair?.twin_b_feed_interval_minutes ?? activePair?.feed_interval_minutes ?? 180);
       // Find the most recent feed event for this twin
       const lastFeed = recentEvents.find(
         (e) => e.twin_label === twinLabel && e.type === 'feed'
@@ -80,5 +82,5 @@ export function useFeedInterval(): {
       twinA: computeForTwin('A'),
       twinB: computeForTwin('B'),
     };
-  }, [activePair?.feed_interval_minutes, recentEvents]);
+  }, [activePair?.twin_a_feed_interval_minutes, activePair?.twin_b_feed_interval_minutes, activePair?.feed_interval_minutes, recentEvents]);
 }

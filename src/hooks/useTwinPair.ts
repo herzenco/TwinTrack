@@ -63,6 +63,8 @@ export function useTwinPair() {
           | 'twin_b_color'
           | 'twin_b_emoji'
           | 'feed_interval_minutes'
+          | 'twin_a_feed_interval_minutes'
+          | 'twin_b_feed_interval_minutes'
           | 'nap_nudge_minutes'
           | 'feed_nudge_minutes'
           | 'timezone'

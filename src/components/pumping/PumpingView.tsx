@@ -45,12 +45,24 @@ export function PumpingView() {
   const [timestamp, setTimestamp] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showFutureConfirm, setShowFutureConfirm] = useState(false);
   const [editingSession, setEditingSession] = useState<PumpingSession | null>(null);
 
   const totalOz = leftOz + rightOz;
 
+  function isFutureTime(timeStr: string): boolean {
+    if (!timeStr) return false;
+    return new Date(timeStr).getTime() > Date.now();
+  }
+
   const handleLog = useCallback(async () => {
     if (!pair || !user || totalOz <= 0) return;
+
+    if (isFutureTime(timestamp) && !showFutureConfirm) {
+      setShowFutureConfirm(true);
+      return;
+    }
+
     setSaving(true);
     try {
       const ts = timestamp ? new Date(timestamp).toISOString() : undefined;
@@ -70,13 +82,14 @@ export function PumpingView() {
       setRightOz(0);
       setTimestamp('');
       setNote('');
+      setShowFutureConfirm(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setSyncError(`Failed to log pumping: ${msg}`);
     } finally {
       setSaving(false);
     }
-  }, [pair, user, profile, durationMin, leftOz, rightOz, timestamp, note, totalOz, addPumpingSession, setSyncError]);
+  }, [pair, user, profile, durationMin, leftOz, rightOz, timestamp, note, totalOz, showFutureConfirm, addPumpingSession, setSyncError]);
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -222,7 +235,7 @@ export function PumpingView() {
           <input
             type="datetime-local"
             value={timestamp || nowLocal()}
-            onChange={(e) => setTimestamp(e.target.value)}
+            onChange={(e) => { setTimestamp(e.target.value); setShowFutureConfirm(false); }}
             className="w-full min-h-[48px] px-4 rounded-xl bg-white/5 text-text-primary text-sm
                        border border-white/10 focus:outline-none focus:border-white/20 [color-scheme:dark]"
           />
@@ -242,16 +255,43 @@ export function PumpingView() {
           />
         </div>
 
+        {/* Future time confirmation */}
+        {showFutureConfirm && (
+          <div className="rounded-2xl bg-yellow-500/10 border border-yellow-500/30 p-4 flex flex-col gap-3">
+            <p className="text-sm text-yellow-300 font-medium">
+              This time is in the future. Log anyway?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowFutureConfirm(false)}
+                className="flex-1 min-h-[48px] rounded-xl bg-white/5 text-text-secondary font-semibold
+                           hover:bg-white/10 active:scale-95 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLog}
+                className="flex-1 min-h-[48px] rounded-xl bg-yellow-500/20 text-yellow-300 font-semibold
+                           hover:bg-yellow-500/30 active:scale-95 transition-all"
+              >
+                Log Future Session
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Log button */}
-        <button
-          onClick={handleLog}
-          disabled={totalOz <= 0 || saving}
-          className="min-h-[64px] rounded-2xl text-base font-bold active:scale-[0.97] transition-all
-                     text-white disabled:opacity-40 disabled:pointer-events-none
-                     bg-gradient-to-r from-twin-a to-twin-b"
-        >
-          {saving ? 'Saving...' : `Log ${fmtOz(totalOz)}oz Pumped`}
-        </button>
+        {!showFutureConfirm && (
+          <button
+            onClick={handleLog}
+            disabled={totalOz <= 0 || saving}
+            className="min-h-[64px] rounded-2xl text-base font-bold active:scale-[0.97] transition-all
+                       text-white disabled:opacity-40 disabled:pointer-events-none
+                       bg-gradient-to-r from-twin-a to-twin-b"
+          >
+            {saving ? 'Saving...' : `Log ${fmtOz(totalOz)}oz Pumped`}
+          </button>
+        )}
       </div>
 
       {/* History */}

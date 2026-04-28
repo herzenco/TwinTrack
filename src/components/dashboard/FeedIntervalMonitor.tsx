@@ -17,7 +17,8 @@ export function FeedIntervalMonitor({ label, pair, lastFeedTimestamp }: FeedInte
   const name = isA ? pair.twin_a_name : pair.twin_b_name;
   const color = isA ? pair.twin_a_color : pair.twin_b_color;
 
-  const intervalMs = pair.feed_interval_minutes * 60 * 1000;
+  const intervalMin = (isA ? pair.twin_a_feed_interval_minutes : pair.twin_b_feed_interval_minutes) ?? pair.feed_interval_minutes;
+  const intervalMs = intervalMin * 60 * 1000;
   const yellowThresholdMs = intervalMs - 30 * 60 * 1000; // 30 min before due
 
   useEffect(() => {
@@ -88,7 +89,7 @@ export function FeedIntervalMonitor({ label, pair, lastFeedTimestamp }: FeedInte
       {/* Info row */}
       <div className="flex justify-between mt-2">
         <span className="text-[10px] text-text-muted">
-          Interval: {pair.feed_interval_minutes / 60}h
+          Interval: {intervalMin / 60}h
         </span>
         {state === 'red' && (
           <span className="text-[10px] font-medium text-danger">

@@ -25,6 +25,8 @@ export interface TwinPair {
   twin_b_color: string;
   twin_b_emoji: string;
   feed_interval_minutes: number;
+  twin_a_feed_interval_minutes?: number;
+  twin_b_feed_interval_minutes?: number;
   nap_nudge_minutes: number;
   feed_nudge_minutes: number;
   timezone: string;
