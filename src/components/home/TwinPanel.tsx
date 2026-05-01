@@ -19,6 +19,7 @@ interface TwinPanelProps {
   onToggleNap: (twin: TwinLabel) => void;
   onStopTimer: (timerId: string, pausedMs?: number, segments?: FeedSegment[]) => void;
   onSwitchBreast: (timerId: string, newSide: FeedSide) => void;
+  onTogglePause: (timerId: string, pause: boolean) => void;
   onRetroLogBottle: (twin: TwinLabel, feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp: string) => void;
   onRetroLogBreast: (twin: TwinLabel, side: FeedSide, startTime: string, endTime: string) => void;
   onRetroLogDiaper: (twin: TwinLabel, subtype: DiaperSubtype, timestamp: string) => void;
@@ -68,6 +69,7 @@ export function TwinPanel({
   onToggleNap,
   onStopTimer,
   onSwitchBreast,
+  onTogglePause,
   onRetroLogBottle,
   onRetroLogBreast,
   onRetroLogDiaper,
@@ -75,10 +77,7 @@ export function TwinPanel({
 }: TwinPanelProps) {
   const [feedModalOpen, setFeedModalOpen] = useState(false);
   const [retroModalOpen, setRetroModalOpen] = useState(false);
-  const feedPausedMsRef = useRef(0);
   const segmentsRef = useRef<FeedSegment[]>([]);
-  const feedIsPausedRef = useRef(false);
-  const feedPauseStartRef = useRef<number | null>(null);
 
   const isA = label === 'A';
   const name = isA ? pair.twin_a_name : pair.twin_b_name;
@@ -162,18 +161,16 @@ export function TwinPanel({
   // Reset segment tracking when a new feed timer starts
   useEffect(() => {
     segmentsRef.current = [];
-    feedPausedMsRef.current = 0;
-    feedIsPausedRef.current = false;
-    feedPauseStartRef.current = null;
   }, [feedTimer?.id]);
 
   const getCurrentTotalPausedMs = useCallback(() => {
-    let total = feedPausedMsRef.current;
-    if (feedIsPausedRef.current && feedPauseStartRef.current) {
-      total += Date.now() - feedPauseStartRef.current;
+    if (!feedTimer) return 0;
+    let total = feedTimer.total_paused_ms ?? 0;
+    if (feedTimer.is_paused && feedTimer.paused_at) {
+      total += Date.now() - new Date(feedTimer.paused_at).getTime();
     }
     return total;
-  }, []);
+  }, [feedTimer]);
 
   const handleSwitchSide = useCallback(() => {
     if (!feedTimer || !feedTimer.feed_side || feedTimer.feed_side === 'both') return;
@@ -201,13 +198,8 @@ export function TwinPanel({
         segments = allSegments;
       }
     }
-    onStopTimer(feedTimer.id, feedPausedMsRef.current, segments);
+    onStopTimer(feedTimer.id, undefined, segments);
   }, [feedTimer, getCurrentTotalPausedMs, onStopTimer]);
-
-  const handlePauseStateChange = useCallback((paused: boolean) => {
-    feedIsPausedRef.current = paused;
-    feedPauseStartRef.current = paused ? Date.now() : null;
-  }, []);
 
   // Feed time display
   const feedStartTime = lastFeed?.timestamp ? formatTime(lastFeed.timestamp) : null;
@@ -247,8 +239,10 @@ export function TwinPanel({
                 type="feed"
                 twinColor={color}
                 label={`Feeding${feedTimer.feed_side ? ` (${feedTimer.feed_side.charAt(0).toUpperCase()})` : ''}`}
-                onPausedTimeChange={(ms) => { feedPausedMsRef.current = ms; }}
-                onPauseStateChange={handlePauseStateChange}
+                isPaused={feedTimer.is_paused}
+                totalPausedMs={feedTimer.total_paused_ms ?? 0}
+                pausedAt={feedTimer.paused_at}
+                onTogglePause={() => onTogglePause(feedTimer.id, !feedTimer.is_paused)}
               />
               {feedTimer.feed_side && feedTimer.feed_side !== 'both' && (
                 <button
@@ -278,6 +272,10 @@ export function TwinPanel({
                 type="nap"
                 twinColor={color}
                 label="Napping"
+                isPaused={napTimer.is_paused}
+                totalPausedMs={napTimer.total_paused_ms ?? 0}
+                pausedAt={napTimer.paused_at}
+                onTogglePause={() => onTogglePause(napTimer.id, !napTimer.is_paused)}
               />
               <button
                 onClick={() => onStopTimer(napTimer.id)}
@@ -519,6 +517,8 @@ export function TwinPanel({
         lastBreastSide={lastBreastSide}
         onLogBottle={handleLogBottle}
         onStartBreast={handleStartBreast}
+        onRetroLogBottle={handleRetroLogBottle}
+        onRetroLogBreast={handleRetroLogBreast}
       />
     </div>
   );

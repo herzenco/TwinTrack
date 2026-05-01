@@ -6,6 +6,7 @@ import {
   createTimer,
   stopTimerAndCreateEvent,
   updateTimerSide,
+  toggleTimerPause,
   type CreateTimerParams,
   type StopTimerParams,
 } from '../lib/database';
@@ -150,6 +151,34 @@ export function useActiveTimers() {
     [activeTimers]
   );
 
+  const togglePause = useCallback(
+    async (timerId: string, pause: boolean) => {
+      // Optimistically update local state
+      if (pause) {
+        updateTimer(timerId, {
+          is_paused: true,
+          paused_at: new Date().toISOString(),
+        });
+      } else {
+        const timer = activeTimers.find((t) => t.id === timerId);
+        const pausedAt = timer?.paused_at ? new Date(timer.paused_at).getTime() : Date.now();
+        const additionalMs = Date.now() - pausedAt;
+        const newTotal = (timer?.total_paused_ms ?? 0) + additionalMs;
+        updateTimer(timerId, {
+          is_paused: false,
+          paused_at: null,
+          total_paused_ms: newTotal,
+        });
+      }
+      try {
+        await toggleTimerPause(timerId, pause);
+      } catch {
+        // Revert on failure — realtime will correct eventually
+      }
+    },
+    [activeTimers, updateTimer]
+  );
+
   const refreshTimers = useCallback(async () => {
     if (!activePair) return;
     const timers = await getActiveTimers(activePair.id);
@@ -162,6 +191,7 @@ export function useActiveTimers() {
     startTimer,
     stopTimer,
     switchSide,
+    togglePause,
     getTimerForTwin,
     refreshTimers,
   };

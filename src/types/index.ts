@@ -73,6 +73,9 @@ export interface ActiveTimer {
   started_by_uid: string;
   started_by_name: string;
   feed_side: FeedSide | null;
+  is_paused: boolean;
+  paused_at: string | null;
+  total_paused_ms: number;
 }
 
 export interface Invite {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { formatDuration, elapsedMs } from '../../utils/time';
 
 interface TimerDisplayProps {
@@ -6,42 +6,45 @@ interface TimerDisplayProps {
   type: 'feed' | 'nap';
   twinColor: string;
   label?: string;
-  onPausedTimeChange?: (pausedMs: number) => void;
-  onPauseStateChange?: (paused: boolean) => void;
+  isPaused: boolean;
+  totalPausedMs: number;
+  pausedAt: string | null;
+  onTogglePause: () => void;
 }
 
-export function TimerDisplay({ startedAt, type, twinColor, label, onPausedTimeChange, onPauseStateChange }: TimerDisplayProps) {
-  const [paused, setPaused] = useState(false);
-  const [totalPausedMs, setTotalPausedMs] = useState(0);
-  const [displayElapsed, setDisplayElapsed] = useState(() => elapsedMs(startedAt));
-  const pauseStartRef = useRef<number | null>(null);
+export function TimerDisplay({
+  startedAt,
+  type,
+  twinColor,
+  label,
+  isPaused,
+  totalPausedMs,
+  pausedAt,
+  onTogglePause,
+}: TimerDisplayProps) {
+  const getActiveElapsed = useCallback(() => {
+    const raw = elapsedMs(startedAt);
+    let paused = totalPausedMs;
+    if (isPaused && pausedAt) {
+      paused += Date.now() - new Date(pausedAt).getTime();
+    }
+    return Math.max(0, raw - paused);
+  }, [startedAt, isPaused, totalPausedMs, pausedAt]);
+
+  const [displayElapsed, setDisplayElapsed] = useState(getActiveElapsed);
 
   useEffect(() => {
-    if (paused) return;
+    if (isPaused) {
+      // Update once to show frozen value
+      setDisplayElapsed(getActiveElapsed());
+      return;
+    }
 
     const interval = setInterval(() => {
-      setDisplayElapsed(elapsedMs(startedAt) - totalPausedMs);
+      setDisplayElapsed(getActiveElapsed());
     }, 1000);
     return () => clearInterval(interval);
-  }, [startedAt, paused, totalPausedMs]);
-
-  const handleTogglePause = useCallback(() => {
-    if (paused) {
-      // Resuming — add pause duration to total
-      const pauseDuration = pauseStartRef.current ? Date.now() - pauseStartRef.current : 0;
-      const newTotal = totalPausedMs + pauseDuration;
-      setTotalPausedMs(newTotal);
-      pauseStartRef.current = null;
-      setPaused(false);
-      onPausedTimeChange?.(newTotal);
-      onPauseStateChange?.(false);
-    } else {
-      // Pausing
-      pauseStartRef.current = Date.now();
-      setPaused(true);
-      onPauseStateChange?.(true);
-    }
-  }, [paused, totalPausedMs, onPausedTimeChange, onPauseStateChange]);
+  }, [isPaused, getActiveElapsed]);
 
   const typeIcon = type === 'feed' ? '🍼' : '😴';
   const timeString = formatDuration(displayElapsed);
@@ -55,7 +58,7 @@ export function TimerDisplay({ startedAt, type, twinColor, label, onPausedTimeCh
       )}
       <div className="relative flex items-center justify-center w-full py-4">
         {/* Pulsing glow — stops when paused */}
-        {!paused && (
+        {!isPaused && (
           <>
             <div
               className="absolute inset-x-4 inset-y-0 rounded-2xl opacity-25 animate-pulse blur-xl"
@@ -70,7 +73,7 @@ export function TimerDisplay({ startedAt, type, twinColor, label, onPausedTimeCh
         <span
           className={`relative font-mono text-5xl md:text-4xl font-bold tracking-wider
                      px-6 py-4 rounded-2xl border border-white/10
-                     ${paused ? 'opacity-50' : ''}`}
+                     ${isPaused ? 'opacity-50' : ''}`}
           style={{ color: twinColor }}
         >
           {timeString}
@@ -78,7 +81,7 @@ export function TimerDisplay({ startedAt, type, twinColor, label, onPausedTimeCh
       </div>
 
       {/* Pause indicator */}
-      {paused && (
+      {isPaused && (
         <span className="text-xs font-semibold text-warning uppercase tracking-wider">
           Paused
         </span>
@@ -87,15 +90,15 @@ export function TimerDisplay({ startedAt, type, twinColor, label, onPausedTimeCh
       {/* Pause / Resume button */}
       {type === 'feed' && (
         <button
-          onClick={handleTogglePause}
+          onClick={onTogglePause}
           className={`w-full min-h-[60px] rounded-2xl text-base font-bold
                      active:scale-[0.97] transition-all
-                     ${paused
+                     ${isPaused
                        ? 'bg-success/15 text-success border border-success/20'
                        : 'bg-white/[0.06] text-text-secondary border border-white/[0.08]'
                      }`}
         >
-          {paused ? '▶  Resume' : '⏸  Pause'}
+          {isPaused ? '▶  Resume' : '⏸  Pause'}
         </button>
       )}
     </div>

@@ -283,6 +283,39 @@ export async function updateTimerSide(
   if (error) throw error;
 }
 
+export async function toggleTimerPause(
+  timerId: string,
+  pause: boolean
+): Promise<void> {
+  if (pause) {
+    // Pausing — set is_paused and paused_at
+    const { error } = await supabase
+      .from('active_timers')
+      .update({ is_paused: true, paused_at: new Date().toISOString() })
+      .eq('id', timerId);
+    if (error) throw error;
+  } else {
+    // Resuming — accumulate paused time, clear paused_at
+    // First fetch current timer to calculate pause duration
+    const { data: timer, error: fetchError } = await supabase
+      .from('active_timers')
+      .select('paused_at, total_paused_ms')
+      .eq('id', timerId)
+      .single();
+    if (fetchError) throw fetchError;
+
+    const pausedAt = timer.paused_at ? new Date(timer.paused_at).getTime() : Date.now();
+    const additionalMs = Date.now() - pausedAt;
+    const newTotal = (timer.total_paused_ms ?? 0) + additionalMs;
+
+    const { error } = await supabase
+      .from('active_timers')
+      .update({ is_paused: false, paused_at: null, total_paused_ms: newTotal })
+      .eq('id', timerId);
+    if (error) throw error;
+  }
+}
+
 export async function getActiveTimers(
   pairId: string
 ): Promise<ActiveTimer[]> {
