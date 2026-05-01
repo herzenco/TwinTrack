@@ -46,20 +46,23 @@ export function SettingsView() {
     const bVal = intervalMode === 'both' ? feedIntervalBoth : feedIntervalB;
     setSavingInterval(true);
     try {
+      // Try with per-twin columns first
       const updated = await updateTwinPair(pair.id, {
-        twin_a_feed_interval_minutes: aVal,
-        twin_b_feed_interval_minutes: bVal,
-        feed_interval_minutes: aVal, // keep legacy column in sync
-      });
-      setActivePair(updated);
-    } catch {
-      // Optimistic fallback
-      setActivePair({
-        ...pair,
         twin_a_feed_interval_minutes: aVal,
         twin_b_feed_interval_minutes: bVal,
         feed_interval_minutes: aVal,
       });
+      setActivePair(updated);
+    } catch {
+      // Per-twin columns may not exist yet — fall back to legacy column only
+      try {
+        const updated = await updateTwinPair(pair.id, {
+          feed_interval_minutes: aVal,
+        });
+        setActivePair({ ...updated, twin_a_feed_interval_minutes: aVal, twin_b_feed_interval_minutes: bVal });
+      } catch {
+        setActivePair({ ...pair, twin_a_feed_interval_minutes: aVal, twin_b_feed_interval_minutes: bVal, feed_interval_minutes: aVal });
+      }
     } finally {
       setSavingInterval(false);
     }
