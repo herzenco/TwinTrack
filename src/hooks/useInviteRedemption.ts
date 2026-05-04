@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAppStore } from '../store/appStore';
-import { redeemInvite } from '../lib/database';
+import { redeemInvite, joinWithFamilyCode } from '../lib/database';
 import { useAuth } from './useAuth';
 
 const PENDING_INVITE_KEY = 'pendingInviteCode';
@@ -29,7 +29,12 @@ export function useInviteRedemption() {
     setRedeeming(true);
     setError(null);
 
-    redeemInvite(code, profile.display_name)
+    const isFamilyCode = /^\d{4}$/.test(code);
+    const joinPromise = isFamilyCode
+      ? joinWithFamilyCode(code, profile.display_name)
+      : redeemInvite(code, profile.display_name);
+
+    joinPromise
       .then(async () => {
         sessionStorage.removeItem(PENDING_INVITE_KEY);
         await refreshProfile();

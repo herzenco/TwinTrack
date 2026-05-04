@@ -5,6 +5,7 @@ import {
   createPumpingSession,
   deletePumpingSession,
   updatePumpingSession as updatePumpingDb,
+  updateTwinPair,
 } from '../../lib/database';
 import { BottomSheet } from '../shared/BottomSheet';
 import type { PumpingSession } from '../../types';
@@ -101,6 +102,11 @@ export function PumpingView() {
     }
   }, [removePumpingSession, setSyncError]);
 
+  const [editingInterval, setEditingInterval] = useState(false);
+  const [intervalInput, setIntervalInput] = useState(pair?.pump_interval_minutes ?? 180);
+  const [savingInterval, setSavingInterval] = useState(false);
+  const setActivePair = useAppStore((s) => s.setActivePair);
+
   // Today's summary
   const todaySummary = useMemo(() => {
     const today = new Date().toDateString();
@@ -113,6 +119,36 @@ export function PumpingView() {
       rightOz: todaySessions.reduce((sum, s) => sum + s.right_oz, 0),
     };
   }, [sessions]);
+
+  // Next 3 scheduled pumps based on last pump + interval
+  const nextPumps = useMemo(() => {
+    if (!pair) return [];
+    const interval = pair.pump_interval_minutes ?? 180;
+    const sorted = [...sessions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const lastPumpTime = sorted.length > 0 ? new Date(sorted[0].timestamp).getTime() : Date.now();
+
+    const pumps: Date[] = [];
+    for (let i = 1; i <= 3; i++) {
+      const nextTime = new Date(lastPumpTime + interval * 60000 * i);
+      pumps.push(nextTime);
+    }
+    return pumps;
+  }, [sessions, pair]);
+
+  const handleSaveInterval = useCallback(async () => {
+    if (!pair) return;
+    setSavingInterval(true);
+    try {
+      const updated = await updateTwinPair(pair.id, { pump_interval_minutes: intervalInput });
+      setActivePair(updated);
+      setEditingInterval(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSyncError(`Failed to save interval: ${msg}`);
+    } finally {
+      setSavingInterval(false);
+    }
+  }, [pair, intervalInput, setActivePair, setSyncError]);
 
   if (!pair) return null;
 
@@ -148,6 +184,90 @@ export function PumpingView() {
           </div>
         </div>
       )}
+
+      {/* Pump Interval & Next Pumps */}
+      <div className="rounded-2xl bg-bg-card/80 border border-white/10 p-4 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-text-primary">Pump Schedule</p>
+          <button
+            onClick={() => { setEditingInterval(!editingInterval); setIntervalInput(pair.pump_interval_minutes ?? 180); }}
+            className="text-xs text-twin-a font-medium"
+          >
+            {editingInterval ? 'Cancel' : 'Edit Interval'}
+          </button>
+        </div>
+
+        {editingInterval ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-text-muted">Pump every:</p>
+            <div className="flex flex-wrap gap-2">
+              {[90, 120, 150, 180, 210, 240].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setIntervalInput(m)}
+                  className={`min-w-[56px] min-h-[44px] rounded-xl text-sm font-bold transition-all active:scale-95
+                    ${intervalInput === m
+                      ? 'bg-twin-a text-[#0F1117]'
+                      : 'bg-white/5 text-text-secondary hover:bg-white/10'
+                    }`}
+                >
+                  {m / 60}h
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleSaveInterval}
+              disabled={savingInterval}
+              className="min-h-[48px] rounded-xl bg-twin-a text-[#0F1117] font-bold text-sm
+                         active:scale-95 transition-all disabled:opacity-50"
+            >
+              {savingInterval ? 'Saving...' : 'Save Interval'}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-text-muted">
+              Every <span className="font-bold text-text-primary">{(pair.pump_interval_minutes ?? 180) / 60}h</span>
+              {sessions.length > 0 && (
+                <span> &middot; Last pump: <span className="font-bold text-text-primary">
+                  {formatTime([...sessions].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0].timestamp)}
+                </span></span>
+              )}
+            </p>
+
+            {nextPumps.length > 0 && (
+              <div className="flex gap-2 mt-1">
+                {nextPumps.map((time, i) => {
+                  const isPast = time.getTime() < Date.now();
+                  return (
+                    <div
+                      key={i}
+                      className={`flex-1 rounded-xl p-2.5 text-center border ${
+                        isPast
+                          ? 'bg-danger/10 border-danger/20'
+                          : i === 0
+                            ? 'bg-twin-a/10 border-twin-a/20'
+                            : 'bg-white/[0.03] border-white/5'
+                      }`}
+                    >
+                      <p className={`text-[10px] uppercase font-medium tracking-wide ${
+                        isPast ? 'text-danger' : 'text-text-muted'
+                      }`}>
+                        {isPast ? 'Overdue' : i === 0 ? 'Next' : `+${i + 1}`}
+                      </p>
+                      <p className={`text-sm font-bold ${
+                        isPast ? 'text-danger' : 'text-text-primary'
+                      }`}>
+                        {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Log new session */}
       <div className="rounded-2xl bg-bg-card/80 border border-white/10 p-4 flex flex-col gap-4">

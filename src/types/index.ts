@@ -30,6 +30,8 @@ export interface TwinPair {
   nap_nudge_minutes: number;
   feed_nudge_minutes: number;
   timezone: string;
+  family_code: string | null;
+  pump_interval_minutes: number;
 }
 
 export interface PairMember {

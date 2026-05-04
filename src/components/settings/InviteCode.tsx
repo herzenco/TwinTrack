@@ -1,74 +1,84 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-interface InviteCodeProps {
-  onGenerate: () => Promise<{ code: string; expires_at: string }>;
+interface FamilyCodeProps {
+  pairId: string;
+  onGetCode: () => Promise<string | null>;
+  onSetCode: (code: string) => Promise<void>;
 }
 
-export function InviteCode({ onGenerate }: InviteCodeProps) {
-  const [code, setCode] = useState<string | null>(null);
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+export function FamilyCode({ pairId, onGetCode, onSetCode }: FamilyCodeProps) {
+  const [currentCode, setCurrentCode] = useState<string | null>(null);
+  const [inputCode, setInputCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
 
-  const shareUrl = code ? `${window.location.origin}/join/${code}` : null;
-  const canShare = typeof navigator.share === 'function';
+  useEffect(() => {
+    loadCode();
+  }, [pairId]);
 
-  async function handleGenerate() {
+  async function loadCode() {
+    setFetching(true);
+    try {
+      const code = await onGetCode();
+      setCurrentCode(code);
+    } catch {
+      // ignore
+    } finally {
+      setFetching(false);
+    }
+  }
+
+  async function handleSave() {
+    if (inputCode.length !== 4) {
+      setError('Enter a 4-digit code');
+      return;
+    }
     setLoading(true);
     setError(null);
+    setSuccess(false);
     try {
-      const result = await onGenerate();
-      setCode(result.code);
-      setExpiresAt(result.expires_at);
+      await onSetCode(inputCode);
+      setCurrentCode(inputCode);
+      setEditing(false);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate invite');
+      setError(err instanceof Error ? err.message : 'Failed to set code');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleCopyLink() {
-    if (!shareUrl) return;
+  async function handleCopy() {
+    if (!currentCode) return;
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied('link');
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      // Fallback handled by share
-    }
-  }
-
-  async function handleCopyCode() {
-    if (!code) return;
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied('code');
-      setTimeout(() => setCopied(null), 2000);
+      await navigator.clipboard.writeText(currentCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard unavailable
     }
   }
 
-  async function handleShare() {
-    if (!shareUrl || !canShare) return;
-    try {
-      await navigator.share({
-        title: 'Join me on TwinTrack',
-        text: "I'd like you to help track our twins. Tap this link to join:",
-        url: shareUrl,
-      });
-    } catch {
-      // User cancelled share
-    }
+  if (fetching) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h3 className="text-sm font-semibold text-text-primary">Family Code</h3>
+        <p className="text-xs text-text-muted">Loading...</p>
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <h3 className="text-sm font-semibold text-text-primary">Invite a Caregiver</h3>
+      <h3 className="text-sm font-semibold text-text-primary">Family Code</h3>
       <p className="text-xs text-text-muted">
-        Generate an invite link to share with a family member or caregiver.
-        Links expire after 48 hours.
+        Set a 4-digit code that family members and caregivers can use to join your twin pair.
+        Share this code with anyone you want to give access.
       </p>
 
       {error && (
@@ -77,92 +87,110 @@ export function InviteCode({ onGenerate }: InviteCodeProps) {
         </div>
       )}
 
-      {!code ? (
-        <button
-          onClick={handleGenerate}
-          disabled={loading}
-          className="min-h-[56px] rounded-xl bg-twin-a/15 text-twin-a font-bold text-sm
-                     hover:bg-twin-a/20 active:scale-95 transition-all
-                     disabled:opacity-50 disabled:pointer-events-none"
-        >
-          {loading ? 'Generating...' : 'Generate Invite Link'}
-        </button>
-      ) : (
+      {success && (
+        <div className="bg-success/10 border border-success/20 rounded-xl px-4 py-3 text-sm text-success">
+          Family code saved!
+        </div>
+      )}
+
+      {currentCode && !editing ? (
         <div className="flex flex-col gap-4">
-          {/* Shareable link */}
+          {/* Current code display */}
           <div className="bg-white/5 rounded-xl p-4 flex flex-col gap-3">
-            <label className="text-xs text-text-muted">Share this link</label>
-            <div className="flex items-center gap-2 bg-bg-primary rounded-lg px-3 py-2.5 border border-white/10">
-              <span className="flex-1 text-sm text-text-primary truncate font-mono">
-                {shareUrl}
-              </span>
+            <label className="text-xs text-text-muted">Your family code</label>
+            <div className="flex items-center justify-center gap-2">
+              {currentCode.split('').map((digit, i) => (
+                <span
+                  key={i}
+                  className="w-12 h-14 flex items-center justify-center rounded-lg bg-bg-primary
+                             font-mono text-2xl font-bold text-text-primary border border-white/10"
+                >
+                  {digit}
+                </span>
+              ))}
             </div>
 
-            <div className="flex gap-2">
-              {canShare ? (
-                <button
-                  onClick={handleShare}
-                  className="flex-1 min-h-[52px] rounded-xl bg-twin-a text-bg-primary font-bold text-sm
-                             active:scale-95 transition-all flex items-center justify-center gap-2"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
-                    <polyline points="16 6 12 2 8 6" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
-                  </svg>
-                  Share Link
-                </button>
-              ) : (
-                <button
-                  onClick={handleCopyLink}
-                  className="flex-1 min-h-[52px] rounded-xl bg-twin-a text-bg-primary font-bold text-sm
-                             active:scale-95 transition-all"
-                >
-                  {copied === 'link' ? 'Copied!' : 'Copy Link'}
-                </button>
-              )}
+            <div className="flex gap-2 mt-2">
               <button
-                onClick={handleCopyCode}
+                onClick={handleCopy}
+                className="flex-1 min-h-[52px] rounded-xl bg-twin-a text-bg-primary font-bold text-sm
+                           active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                {copied ? 'Copied!' : 'Copy Code'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditing(true);
+                  setInputCode(currentCode);
+                  setError(null);
+                }}
                 className="min-h-[52px] px-5 rounded-xl bg-white/8 text-text-primary font-semibold text-sm
                            active:scale-95 transition-all"
               >
-                {copied === 'code' ? 'Copied!' : 'Copy Code'}
+                Change
               </button>
             </div>
           </div>
 
-          {/* Code display */}
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-xs text-text-muted">Or share the code directly</span>
-            <div className="flex items-center gap-1">
-              {code.split('').map((char, i) => (
-                <span
-                  key={i}
-                  className="w-9 h-11 flex items-center justify-center rounded-lg bg-bg-primary
-                             font-mono text-lg font-bold text-text-primary border border-white/10"
-                >
-                  {char}
-                </span>
-              ))}
-            </div>
+          <p className="text-[11px] text-text-muted text-center">
+            Anyone with this code can join your twin pair. Change it anytime to revoke access for new users.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {/* Code input */}
+          <div className="flex justify-center gap-2">
+            {[0, 1, 2, 3].map((i) => (
+              <input
+                key={i}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={inputCode[i] ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  const newCode = inputCode.split('');
+                  newCode[i] = val;
+                  setInputCode(newCode.join(''));
+                  if (val && e.target.nextElementSibling) {
+                    (e.target.nextElementSibling as HTMLInputElement).focus();
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Backspace' && !inputCode[i] && e.currentTarget.previousElementSibling) {
+                    (e.currentTarget.previousElementSibling as HTMLInputElement).focus();
+                  }
+                }}
+                className="w-14 h-16 text-center rounded-xl bg-white/5 text-text-primary font-mono text-2xl
+                           font-bold border border-white/10 focus:outline-none focus:border-twin-a/50"
+              />
+            ))}
           </div>
 
-          {expiresAt && (
-            <p className="text-[11px] text-text-muted text-center">
-              Expires {new Date(expiresAt).toLocaleString()}
-            </p>
-          )}
-
-          <button
-            onClick={() => {
-              setCode(null);
-              setExpiresAt(null);
-              setError(null);
-            }}
-            className="text-xs text-text-muted hover:text-text-secondary transition-colors text-center"
-          >
-            Generate a new link
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={loading || inputCode.length !== 4}
+              className="flex-1 min-h-[52px] rounded-xl bg-twin-a text-bg-primary font-bold text-sm
+                         active:scale-95 transition-all
+                         disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {loading ? 'Saving...' : 'Set Family Code'}
+            </button>
+            {currentCode && (
+              <button
+                onClick={() => {
+                  setEditing(false);
+                  setInputCode('');
+                  setError(null);
+                }}
+                className="min-h-[52px] px-5 rounded-xl bg-white/8 text-text-primary font-semibold text-sm
+                           active:scale-95 transition-all"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

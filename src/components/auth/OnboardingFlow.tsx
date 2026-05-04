@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createTwinPair, redeemInvite } from '../../lib/database';
+import { createTwinPair, joinWithFamilyCode } from '../../lib/database';
 import { signOut } from '../../lib/auth';
 import { useAppStore } from '../../store/appStore';
 import { useAuth } from '../../hooks/useAuth';
@@ -21,7 +21,7 @@ export function OnboardingFlow() {
   const [feedInterval, setFeedInterval] = useState(180);
 
   // Join state
-  const [inviteCode, setInviteCode] = useState('');
+  const [familyCode, setFamilyCode] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +52,8 @@ export function OnboardingFlow() {
 
   async function handleJoin() {
     setError(null);
-    if (inviteCode.length !== 6) {
-      setError('Enter a 6-character invite code');
+    if (familyCode.length !== 4) {
+      setError('Enter a 4-digit family code');
       return;
     }
     if (!user || !profile) {
@@ -62,10 +62,10 @@ export function OnboardingFlow() {
     }
     setLoading(true);
     try {
-      await redeemInvite(inviteCode, profile.display_name);
+      await joinWithFamilyCode(familyCode, profile.display_name);
       await refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid or expired invite code');
+      setError(err instanceof Error ? err.message : 'Invalid family code');
     } finally {
       setLoading(false);
     }
@@ -245,41 +245,41 @@ export function OnboardingFlow() {
             </button>
 
             <p className="text-xs text-text-secondary">
-              Ask the primary caregiver for a 6-character invite code from their Settings page.
+              Ask the primary caregiver for the 4-digit family code from their Settings page.
             </p>
 
             {/* Code input */}
-            <div className="flex justify-center gap-1.5">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div className="flex justify-center gap-2">
+              {[0, 1, 2, 3].map((i) => (
                 <input
                   key={i}
                   type="text"
+                  inputMode="numeric"
                   maxLength={1}
-                  value={inviteCode[i] ?? ''}
+                  value={familyCode[i] ?? ''}
                   onChange={(e) => {
-                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                    const newCode = inviteCode.split('');
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    const newCode = familyCode.split('');
                     newCode[i] = val;
-                    setInviteCode(newCode.join(''));
+                    setFamilyCode(newCode.join(''));
                     if (val && e.target.nextElementSibling) {
                       (e.target.nextElementSibling as HTMLInputElement).focus();
                     }
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Backspace' && !inviteCode[i] && e.currentTarget.previousElementSibling) {
+                    if (e.key === 'Backspace' && !familyCode[i] && e.currentTarget.previousElementSibling) {
                       (e.currentTarget.previousElementSibling as HTMLInputElement).focus();
                     }
                   }}
-                  className="w-11 h-14 text-center rounded-lg bg-white/5 text-text-primary font-mono text-xl
-                             font-bold border border-white/10 focus:outline-none focus:border-twin-a/50
-                             uppercase"
+                  className="w-14 h-16 text-center rounded-xl bg-white/5 text-text-primary font-mono text-2xl
+                             font-bold border border-white/10 focus:outline-none focus:border-twin-a/50"
                 />
               ))}
             </div>
 
             <button
               onClick={handleJoin}
-              disabled={loading || inviteCode.length !== 6}
+              disabled={loading || familyCode.length !== 4}
               className="min-h-[52px] rounded-xl bg-twin-b text-bg-primary font-bold text-sm
                          active:scale-[0.98] transition-all
                          disabled:opacity-50 disabled:pointer-events-none"

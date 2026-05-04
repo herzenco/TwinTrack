@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { redeemInvite } from '../../lib/database';
+import { redeemInvite, joinWithFamilyCode } from '../../lib/database';
 import { setPendingInviteCode } from '../../hooks/useInviteRedemption';
 
 export function JoinInvitePage() {
@@ -11,6 +11,9 @@ export function JoinInvitePage() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
+
+  // Determine if this is a legacy 6-char invite or a 4-digit family code
+  const isFamilyCode = code ? /^\d{4}$/.test(code) : false;
 
   if (!code) {
     return (
@@ -46,9 +49,9 @@ export function JoinInvitePage() {
             </p>
           </div>
 
-          {/* Invite code badge */}
+          {/* Code badge */}
           <div className="flex items-center gap-1.5 bg-white/5 rounded-xl px-4 py-2.5">
-            <span className="text-xs text-text-muted">Invite code:</span>
+            <span className="text-xs text-text-muted">{isFamilyCode ? 'Family code:' : 'Invite code:'}</span>
             <span className="font-mono font-bold text-text-primary tracking-widest">{code}</span>
           </div>
 
@@ -105,13 +108,16 @@ export function JoinInvitePage() {
     setJoining(true);
     setError(null);
     try {
-      await redeemInvite(code, profile.display_name);
+      if (isFamilyCode) {
+        await joinWithFamilyCode(code, profile.display_name);
+      } else {
+        await redeemInvite(code, profile.display_name);
+      }
       await refreshProfile();
       setJoined(true);
-      // Navigate to home after a brief moment
       setTimeout(() => navigate('/'), 500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to join. The code may be expired or invalid.');
+      setError(err instanceof Error ? err.message : 'Failed to join. The code may be invalid.');
     } finally {
       setJoining(false);
     }
@@ -150,7 +156,7 @@ export function JoinInvitePage() {
         </div>
 
         <div className="flex items-center gap-1.5 bg-white/5 rounded-xl px-4 py-2.5">
-          <span className="text-xs text-text-muted">Invite code:</span>
+          <span className="text-xs text-text-muted">{isFamilyCode ? 'Family code:' : 'Invite code:'}</span>
           <span className="font-mono font-bold text-text-primary tracking-widest">{code}</span>
         </div>
 
