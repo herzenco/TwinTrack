@@ -99,6 +99,7 @@ export async function updateTwinPair(
       | 'twin_b_feed_interval_minutes'
       | 'nap_nudge_minutes'
       | 'feed_nudge_minutes'
+      | 'pump_interval_minutes'
       | 'timezone'
       | 'encryption_key_hash'
       | 'encryption_salt'
@@ -429,6 +430,52 @@ export async function redeemInvite(
 
   if (error) throw error;
   return data as RedeemInviteResult;
+}
+
+// ---------------------------------------------------------------------------
+// Family Code
+// ---------------------------------------------------------------------------
+
+export async function setFamilyCode(pairId: string, code: string): Promise<void> {
+  if (!/^\d{4}$/.test(code)) throw new Error('Family code must be exactly 4 digits');
+
+  const { error } = await supabase
+    .from('twin_pairs')
+    .update({ family_code: code })
+    .eq('id', pairId);
+
+  if (error) {
+    if (error.code === '23505') throw new Error('This code is already in use. Choose a different one.');
+    throw error;
+  }
+}
+
+export async function getFamilyCode(pairId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('twin_pairs')
+    .select('family_code')
+    .eq('id', pairId)
+    .single();
+
+  if (error) throw error;
+  return data?.family_code ?? null;
+}
+
+export async function joinWithFamilyCode(
+  code: string,
+  displayName: string
+): Promise<{ pair_id: string }> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase.rpc('join_with_family_code', {
+    p_code: code,
+    p_user_id: userData.user.id,
+    p_display_name: displayName,
+  });
+
+  if (error) throw error;
+  return { pair_id: data as string };
 }
 
 // ---------------------------------------------------------------------------

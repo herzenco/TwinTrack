@@ -313,33 +313,7 @@ export function HomeScreen() {
         />
       </div>
 
-      {/* Tandem feed & previous feed both — only when no feed timers are running */}
-      {!anyFeedTimerActive && (
-        <div className="px-3 pt-3 flex gap-2 md:hidden">
-          <button
-            onClick={() => setTandemSheetOpen(true)}
-            className="flex-1 min-h-[56px] rounded-2xl font-bold text-base
-                       active:scale-[0.97] transition-all text-[#0F1117]
-                       flex items-center justify-center gap-2"
-            style={{
-              background: `linear-gradient(135deg, ${twinAColor}, ${twinBColor})`,
-            }}
-          >
-            <span className="text-xl">🤱</span>
-            Tandem Feed
-          </button>
-          <button
-            onClick={() => setPrevFeedBothOpen(true)}
-            className="min-h-[56px] px-4 rounded-2xl font-bold text-sm
-                       active:scale-[0.97] transition-all text-text-secondary
-                       flex items-center justify-center gap-2
-                       border border-dashed border-white/[0.15] bg-white/[0.04]"
-          >
-            <span className="text-lg">⏪</span>
-            Both
-          </button>
-        </div>
-      )}
+      {/* Tandem feed & previous feed both — moved to bottom on mobile */}
 
       {/* Twin selector tabs — mobile */}
       <div className="flex gap-2 px-3 pt-3 pb-1 md:hidden">
@@ -509,6 +483,36 @@ export function HomeScreen() {
           </div>
         </div>
       </div>
+
+      {/* Tandem feed bottom bar — mobile */}
+      {!anyFeedTimerActive && (
+        <div className="sticky bottom-0 left-0 right-0 px-3 pb-3 pt-2 bg-gradient-to-t from-bg-primary via-bg-primary to-transparent md:hidden">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTandemSheetOpen(true)}
+              className="flex-1 min-h-[56px] rounded-2xl font-bold text-base
+                         active:scale-[0.97] transition-all text-[#0F1117]
+                         flex items-center justify-center gap-2"
+              style={{
+                background: `linear-gradient(135deg, ${twinAColor}, ${twinBColor})`,
+              }}
+            >
+              <span className="text-xl">🤱</span>
+              Tandem Feed
+            </button>
+            <button
+              onClick={() => setPrevFeedBothOpen(true)}
+              className="min-h-[56px] px-4 rounded-2xl font-bold text-sm
+                         active:scale-[0.97] transition-all text-text-secondary
+                         flex items-center justify-center gap-2
+                         border border-dashed border-white/[0.15] bg-white/[0.04]"
+            >
+              <span className="text-lg">⏪</span>
+              Both
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tandem feed setup sheet */}
       <TandemSetupSheet

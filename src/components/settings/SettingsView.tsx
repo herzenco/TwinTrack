@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useAppStore } from '../../store/appStore';
-import { createInvite, updateTwinPair } from '../../lib/database';
+import { setFamilyCode, getFamilyCode, updateTwinPair } from '../../lib/database';
 import { TwinConfig } from './TwinConfig';
 import { MemberManagement } from './MemberManagement';
-import { InviteCode } from './InviteCode';
+import { FamilyCode } from './InviteCode';
 import type { TwinPair } from '../../types';
 
 export function SettingsView() {
@@ -74,10 +74,14 @@ export function SettingsView() {
     useAppStore.getState().setPairMembers(updated);
   }
 
-  async function handleGenerateInvite(): Promise<{ code: string; expires_at: string }> {
+  async function handleGetFamilyCode(): Promise<string | null> {
     if (!pair) throw new Error('No active pair');
-    const invite = await createInvite(pair.id);
-    return { code: invite.code, expires_at: invite.expires_at };
+    return getFamilyCode(pair.id);
+  }
+
+  async function handleSetFamilyCode(code: string): Promise<void> {
+    if (!pair) throw new Error('No active pair');
+    await setFamilyCode(pair.id, code);
   }
 
   if (!pair) {
@@ -220,10 +224,14 @@ export function SettingsView() {
         )}
       </section>
 
-      {/* Invite */}
-      {isOwner && (
+      {/* Family Code */}
+      {isOwner && pair && (
         <section className="rounded-2xl bg-bg-card/60 border border-white/5 p-4">
-          <InviteCode onGenerate={handleGenerateInvite} />
+          <FamilyCode
+            pairId={pair.id}
+            onGetCode={handleGetFamilyCode}
+            onSetCode={handleSetFamilyCode}
+          />
         </section>
       )}
 
