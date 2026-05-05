@@ -72,7 +72,7 @@ function AuthenticatedApp() {
 
   return (
     <div className="flex flex-col h-dvh bg-bg-primary">
-      <main className="flex-1 overflow-y-auto pb-24">
+      <main className="flex-1 overflow-y-auto pb-24 pt-safe">
         <Routes>
           <Route path="/" element={<HomeScreen />} />
           <Route path="/dashboard" element={<DashboardView />} />

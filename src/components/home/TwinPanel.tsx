@@ -344,6 +344,11 @@ export function TwinPanel({
                     </div>
                   );
                 })()}
+                {lastFeed.logged_by_name && (
+                  <span className="text-xs text-text-muted mt-1 block">
+                    by {lastFeed.logged_by_name}
+                  </span>
+                )}
               </>
             ) : (
               <span className="text-sm text-text-muted">No feeds yet</span>

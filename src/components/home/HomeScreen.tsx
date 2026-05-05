@@ -653,7 +653,7 @@ function PreviousFeedBothSheet({
 
   function resetAndClose() {
     setMode(null);
-    setFeedType('formula');
+    setFeedType('breastmilk');
     setAmount(3);
     setCustomAmount('');
     setShowCustom(false);
