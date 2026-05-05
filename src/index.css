@@ -46,7 +46,10 @@ body {
   -webkit-user-select: none;
 }
 
-/* Safe area padding for bottom nav */
+/* Safe area padding */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }

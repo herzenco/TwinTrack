@@ -53,7 +53,7 @@ export function FeedModal({
 
   function resetState() {
     setMode(null);
-    setFeedType('formula');
+    setFeedType('breastmilk');
     setAmount(3);
     setCustomAmount('');
     setShowCustom(false);

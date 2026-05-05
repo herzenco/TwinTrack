@@ -58,7 +58,7 @@ export function RetroLogModal({
   function resetState() {
     setActivity(null);
     setTimeValue(toLocalDatetimeValue(new Date()));
-    setFeedType('formula');
+    setFeedType('breastmilk');
     setAmount(3);
     setCustomAmount('');
     setShowCustom(false);
