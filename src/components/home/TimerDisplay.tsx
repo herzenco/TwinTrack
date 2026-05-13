@@ -34,12 +34,6 @@ export function TimerDisplay({
   const [displayElapsed, setDisplayElapsed] = useState(getActiveElapsed);
 
   useEffect(() => {
-    if (isPaused) {
-      // Update once to show frozen value
-      setDisplayElapsed(getActiveElapsed());
-      return;
-    }
-
     const interval = setInterval(() => {
       setDisplayElapsed(getActiveElapsed());
     }, 1000);

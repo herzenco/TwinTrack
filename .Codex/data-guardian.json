@@ -1,0 +1,27 @@
+{
+  "project_name": "TwinTrack",
+  "databases": [
+    {
+      "name": "main_db",
+      "type": "supabase",
+      "connection_env": "SUPABASE_SERVICE_ROLE_KEY",
+      "url_env": "SUPABASE_URL",
+      "critical_tables": [
+        "user_profiles",
+        "twin_pairs",
+        "pair_members",
+        "events",
+        "active_timers",
+        "invites",
+        "pumping_sessions"
+      ],
+      "always_backup": true
+    }
+  ],
+  "protected_branches": [
+    "main",
+    "production",
+    "staging"
+  ],
+  "risk_level": "paranoid"
+}

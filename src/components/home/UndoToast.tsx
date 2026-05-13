@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { deleteEvent, updateEventNote } from '../../lib/database';
+import type { TrackedEvent } from '../../types';
 
 const UNDO_DURATION = 5000;
 
@@ -11,8 +12,7 @@ const QUICK_NOTES: Record<string, string[]> = {
   note: [],
 };
 
-export function UndoToast() {
-  const undoEvent = useAppStore((s) => s.undoEvent);
+function UndoToastContent({ undoEvent }: { undoEvent: TrackedEvent }) {
   const setUndoEvent = useAppStore((s) => s.setUndoEvent);
   const removeEvent = useAppStore((s) => s.removeEvent);
   const [remaining, setRemaining] = useState(UNDO_DURATION);
@@ -23,21 +23,6 @@ export function UndoToast() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (!undoEvent) {
-      setRemaining(UNDO_DURATION);
-      setShowNote(false);
-      setNoteText('');
-      setSaved(false);
-      timerPaused.current = false;
-      return;
-    }
-
-    setRemaining(UNDO_DURATION);
-    setShowNote(false);
-    setNoteText('');
-    setSaved(false);
-    timerPaused.current = false;
-
     const start = Date.now();
     const interval = setInterval(() => {
       if (timerPaused.current) return;
@@ -51,7 +36,7 @@ export function UndoToast() {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [undoEvent, setUndoEvent]);
+  }, [setUndoEvent]);
 
   const handleUndo = useCallback(async () => {
     if (!undoEvent) return;
@@ -101,8 +86,6 @@ export function UndoToast() {
     setNoteText(combined);
     handleSaveNote(combined);
   }, [noteText, handleSaveNote]);
-
-  if (!undoEvent) return null;
 
   const typeLabels: Record<string, string> = {
     feed: 'Feed',
@@ -222,4 +205,10 @@ export function UndoToast() {
       </div>
     </div>
   );
+}
+
+export function UndoToast() {
+  const undoEvent = useAppStore((s) => s.undoEvent);
+  if (!undoEvent) return null;
+  return <UndoToastContent key={undoEvent.id} undoEvent={undoEvent} />;
 }

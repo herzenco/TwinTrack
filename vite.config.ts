@@ -8,8 +8,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons.svg'],
+      registerType: 'prompt',
+      includeAssets: ['favicon.svg', 'icons.svg', 'icons/*.png'],
       manifest: {
         name: 'TwinTrack',
         short_name: 'TwinTrack',
@@ -21,6 +21,11 @@ export default defineConfig({
         scope: '/',
         start_url: '/',
         icons: [
+          {
+            src: '/icons/apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png',
+          },
           {
             src: '/icons/icon-192x192.png',
             sizes: '192x192',

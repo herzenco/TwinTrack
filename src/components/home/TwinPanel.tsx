@@ -5,8 +5,9 @@ import { ActionButton } from './ActionButton';
 import { FeedModal } from './FeedModal';
 import { RetroLogModal } from './RetroLogModal';
 import { NudgeBanner } from './NudgeBanner';
-import { formatTime } from '../../utils/time';
+import { formatTime, getTimeMs } from '../../utils/time';
 import { fmtOz } from '../../utils/formatters';
+import { DIAPER_LOG_OPTIONS, getWakeWindowEndsAt } from '../../utils/loggingRules';
 
 interface TwinPanelProps {
   label: TwinLabel;
@@ -16,22 +17,28 @@ interface TwinPanelProps {
   onLogBottle: (twin: TwinLabel, feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp?: string) => void;
   onStartBreast: (twin: TwinLabel, side: FeedSide) => void;
   onLogDiaper: (twin: TwinLabel, subtype: DiaperSubtype) => void;
-  onToggleNap: (twin: TwinLabel) => void;
   onStopTimer: (timerId: string, pausedMs?: number, segments?: FeedSegment[]) => void;
   onSwitchBreast: (timerId: string, newSide: FeedSide) => void;
   onTogglePause: (timerId: string, pause: boolean) => void;
   onRetroLogBottle: (twin: TwinLabel, feedType: FeedType, amount: number, unit: 'oz' | 'ml', timestamp: string) => void;
   onRetroLogBreast: (twin: TwinLabel, side: FeedSide, startTime: string, endTime: string) => void;
   onRetroLogDiaper: (twin: TwinLabel, subtype: DiaperSubtype, timestamp: string) => void;
-  onRetroLogNap: (twin: TwinLabel, napStart: string, napEnd: string) => void;
 }
 
-function getNextFeedTime(lastFeedTimestamp: string, intervalMinutes: number): { time: string; overdue: boolean; diffMin: number } {
-  const nextFeed = new Date(new Date(lastFeedTimestamp).getTime() + intervalMinutes * 60000);
+function getSafeIntervalMinutes(intervalMinutes: number): number | null {
+  return Number.isFinite(intervalMinutes) ? Math.max(0, intervalMinutes) : null;
+}
+
+function getNextFeedTime(lastFeedTimestamp: string, intervalMinutes: number): { time: string; overdue: boolean; diffMin: number } | null {
+  const baseMs = getTimeMs(lastFeedTimestamp);
+  const safeIntervalMinutes = getSafeIntervalMinutes(intervalMinutes);
+  if (baseMs === null || safeIntervalMinutes === null) return null;
+
+  const nextFeedMs = baseMs + safeIntervalMinutes * 60000;
   const now = Date.now();
-  const diffMin = Math.round((nextFeed.getTime() - now) / 60000);
+  const diffMin = Math.round((nextFeedMs - now) / 60000);
   return {
-    time: formatTime(nextFeed.toISOString()),
+    time: formatTime(nextFeedMs),
     overdue: diffMin < 0,
     diffMin,
   };
@@ -42,20 +49,82 @@ function getFeedSchedule(
   intervalMinutes: number,
   count: number,
 ): { time: string; diffMin: number; overdue: boolean }[] {
-  const baseMs = new Date(lastFeedTimestamp).getTime();
-  const intervalMs = intervalMinutes * 60000;
+  const baseMs = getTimeMs(lastFeedTimestamp);
+  const safeIntervalMinutes = getSafeIntervalMinutes(intervalMinutes);
+  if (baseMs === null || safeIntervalMinutes === null) return [];
+
+  const intervalMs = safeIntervalMinutes * 60000;
   const now = Date.now();
   const schedule: { time: string; diffMin: number; overdue: boolean }[] = [];
   for (let i = 1; i <= count; i++) {
     const feedMs = baseMs + intervalMs * i;
     const diffMin = Math.round((feedMs - now) / 60000);
     schedule.push({
-      time: formatTime(new Date(feedMs).toISOString()),
+      time: formatTime(feedMs),
       diffMin,
       overdue: diffMin < 0,
     });
   }
   return schedule;
+}
+
+function WakeWindowCard({
+  lastFeedTimestamp,
+  twinColor,
+}: {
+  lastFeedTimestamp: string | null;
+  twinColor: string;
+}) {
+  const [nowMs, setNowMs] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!lastFeedTimestamp) {
+    return (
+      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-4 py-3">
+        <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Wake Window</span>
+        <span className="text-sm text-text-muted mt-1 block">No feeds yet</span>
+      </div>
+    );
+  }
+
+  const endsAt = getWakeWindowEndsAt(lastFeedTimestamp);
+  if (!endsAt) {
+    return (
+      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-4 py-3">
+        <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Wake Window</span>
+        <span className="text-sm text-text-muted mt-1 block">No recent feed</span>
+      </div>
+    );
+  }
+
+  const diffMs = nowMs > 0 ? endsAt.getTime() - nowMs : 0;
+  const absMinutes = Math.max(0, Math.ceil(Math.abs(diffMs) / 60000));
+  const isOverdue = nowMs > 0 && diffMs <= 0;
+  const status = nowMs === 0 ? '...' : isOverdue ? 'Ready now' : `in ${absMinutes}min`;
+
+  return (
+    <div
+      className="rounded-xl px-4 py-3 border"
+      style={{
+        backgroundColor: isOverdue ? 'rgba(248,113,113,0.08)' : `${twinColor}12`,
+        borderColor: isOverdue ? 'rgba(248,113,113,0.15)' : `${twinColor}24`,
+      }}
+    >
+      <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Wake Window</span>
+      <div className="flex items-baseline gap-2 mt-1">
+        <span className={`text-lg font-bold font-mono ${isOverdue ? 'text-danger' : 'text-text-primary'}`}>
+          {formatTime(endsAt)}
+        </span>
+        <span className={`text-xs font-semibold ${isOverdue ? 'text-danger' : 'text-success'}`}>
+          {status}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export function TwinPanel({
@@ -66,14 +135,12 @@ export function TwinPanel({
   onLogBottle,
   onStartBreast,
   onLogDiaper,
-  onToggleNap,
   onStopTimer,
   onSwitchBreast,
   onTogglePause,
   onRetroLogBottle,
   onRetroLogBreast,
   onRetroLogDiaper,
-  onRetroLogNap,
 }: TwinPanelProps) {
   const [feedModalOpen, setFeedModalOpen] = useState(false);
   const [retroModalOpen, setRetroModalOpen] = useState(false);
@@ -85,8 +152,7 @@ export function TwinPanel({
   const emoji = isA ? pair.twin_a_emoji : pair.twin_b_emoji;
 
   const feedTimer = timers.find((t) => t.twin_label === label && t.type === 'feed');
-  const napTimer = timers.find((t) => t.twin_label === label && t.type === 'nap');
-  const hasActiveTimer = !!feedTimer || !!napTimer;
+  const hasActiveTimer = !!feedTimer;
 
   const lastFeed = useMemo(
     () => events.find((e) => e.twin_label === label && e.type === 'feed'),
@@ -144,13 +210,6 @@ export function TwinPanel({
     [label, onRetroLogDiaper],
   );
 
-  const handleRetroLogNap = useCallback(
-    (napStart: string, napEnd: string) => {
-      onRetroLogNap(label, napStart, napEnd);
-    },
-    [label, onRetroLogNap],
-  );
-
   const handleStartBreast = useCallback(
     (side: FeedSide) => {
       onStartBreast(label, side);
@@ -203,8 +262,9 @@ export function TwinPanel({
 
   // Feed time display
   const feedStartTime = lastFeed?.timestamp ? formatTime(lastFeed.timestamp) : null;
-  const feedEndTime = lastFeed?.duration_ms && lastFeed?.timestamp
-    ? formatTime(new Date(new Date(lastFeed.timestamp).getTime() + lastFeed.duration_ms).toISOString())
+  const lastFeedStartedAtMs = getTimeMs(lastFeed?.timestamp);
+  const feedEndTime = lastFeed?.duration_ms && lastFeedStartedAtMs !== null
+    ? formatTime(lastFeedStartedAtMs + lastFeed.duration_ms)
     : feedStartTime; // For instant logs (bottle), start = end
   const feedDurationMin = lastFeed?.duration_ms ? Math.round(lastFeed.duration_ms / 60000) : null;
 
@@ -262,28 +322,6 @@ export function TwinPanel({
                 style={{ backgroundColor: color }}
               >
                 Stop Feed
-              </button>
-            </div>
-          )}
-          {napTimer && (
-            <div className="w-full flex flex-col items-center gap-4">
-              <TimerDisplay
-                startedAt={napTimer.started_at}
-                type="nap"
-                twinColor={color}
-                label="Napping"
-                isPaused={napTimer.is_paused}
-                totalPausedMs={napTimer.total_paused_ms ?? 0}
-                pausedAt={napTimer.paused_at}
-                onTogglePause={() => onTogglePause(napTimer.id, !napTimer.is_paused)}
-              />
-              <button
-                onClick={() => onStopTimer(napTimer.id)}
-                className="w-full min-h-[72px] rounded-2xl text-lg font-bold
-                           active:scale-[0.97] transition-all text-[#0F1117]"
-                style={{ backgroundColor: color }}
-              >
-                Wake Up
               </button>
             </div>
           )}
@@ -401,6 +439,9 @@ export function TwinPanel({
             )}
           </div>
 
+          {/* Wake window */}
+          <WakeWindowCard lastFeedTimestamp={lastFeed?.timestamp ?? null} twinColor={color} />
+
           {/* Last diaper */}
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] px-4 py-3">
             <span className="text-xs font-semibold text-text-muted uppercase tracking-wide">Last Diaper</span>
@@ -431,17 +472,6 @@ export function TwinPanel({
           onStopAndSave={() => onStopTimer(feedTimer.id)}
         />
       )}
-      {napTimer && (
-        <NudgeBanner
-          timer={napTimer}
-          pair={pair}
-          twinName={name}
-          twinColor={color}
-          onConfirmContinue={() => {}}
-          onStopAndSave={() => onStopTimer(napTimer.id)}
-        />
-      )}
-
       {/* Bottom thumb zone: Action buttons — takes up remaining space */}
       <div className="mt-auto px-3 pb-4 pt-3 flex flex-col gap-2.5">
         <ActionButton
@@ -451,36 +481,18 @@ export function TwinPanel({
           twinColor={color}
           active={!!feedTimer}
         />
-        <div className="grid grid-cols-3 gap-2.5">
-          <ActionButton
-            icon="💧"
-            label="Wet"
-            onClick={() => onLogDiaper(label, 'wet')}
-            variant="secondary"
-            size="compact"
-          />
-          <ActionButton
-            icon="💩"
-            label="Dirty"
-            onClick={() => onLogDiaper(label, 'dirty')}
-            variant="secondary"
-            size="compact"
-          />
-          <ActionButton
-            icon="💧💩"
-            label="Both"
-            onClick={() => onLogDiaper(label, 'both')}
-            variant="secondary"
-            size="compact"
-          />
+        <div className="grid grid-cols-1 gap-2.5">
+          {DIAPER_LOG_OPTIONS.map((option) => (
+            <ActionButton
+              key={option.subtype}
+              icon={option.icon}
+              label={option.label}
+              onClick={() => onLogDiaper(label, option.subtype)}
+              variant="secondary"
+              size="compact"
+            />
+          ))}
         </div>
-        <ActionButton
-          icon={napTimer ? '☀️' : '😴'}
-          label={napTimer ? 'Wake Up' : 'Nap'}
-          onClick={() => (napTimer ? onStopTimer(napTimer.id) : onToggleNap(label))}
-          twinColor={color}
-          active={!!napTimer}
-        />
       </div>
 
       {/* Log past activity button */}
@@ -509,7 +521,6 @@ export function TwinPanel({
         onLogBottle={handleRetroLogBottle}
         onLogBreast={handleRetroLogBreast}
         onLogDiaper={handleRetroLogDiaper}
-        onLogNap={handleRetroLogNap}
       />
 
       {/* Feed modal */}

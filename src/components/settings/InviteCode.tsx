@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface FamilyCodeProps {
   pairId: string;
@@ -16,11 +16,7 @@ export function FamilyCode({ pairId, onGetCode, onSetCode }: FamilyCodeProps) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
 
-  useEffect(() => {
-    loadCode();
-  }, [pairId]);
-
-  async function loadCode() {
+  const loadCode = useCallback(async () => {
     setFetching(true);
     try {
       const code = await onGetCode();
@@ -30,7 +26,11 @@ export function FamilyCode({ pairId, onGetCode, onSetCode }: FamilyCodeProps) {
     } finally {
       setFetching(false);
     }
-  }
+  }, [onGetCode]);
+
+  useEffect(() => {
+    void loadCode();
+  }, [loadCode, pairId]);
 
   async function handleSave() {
     if (inputCode.length !== 4) {

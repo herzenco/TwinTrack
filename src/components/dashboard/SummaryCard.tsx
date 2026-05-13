@@ -8,7 +8,6 @@ interface SummaryCardProps {
   summary: DashboardSummary | null;
   lastFeedTimestamp: string | null;
   lastDiaperTimestamp: string | null;
-  lastNapTimestamp: string | null;
   activeTimer: ActiveTimer | null;
 }
 
@@ -18,16 +17,12 @@ export function SummaryCard({
   summary,
   lastFeedTimestamp,
   lastDiaperTimestamp,
-  lastNapTimestamp,
   activeTimer,
 }: SummaryCardProps) {
   const isA = label === 'A';
   const name = isA ? pair.twin_a_name : pair.twin_b_name;
   const color = isA ? pair.twin_a_color : pair.twin_b_color;
   const emoji = isA ? pair.twin_a_emoji : pair.twin_b_emoji;
-
-  const napHours = summary ? Math.floor(summary.nap_minutes / 60) : 0;
-  const napMin = summary ? summary.nap_minutes % 60 : 0;
 
   return (
     <div
@@ -49,7 +44,7 @@ export function SummaryCard({
       </div>
 
       {/* 24h Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-2 gap-3 mb-3">
         <div className="text-center">
           <p className="text-2xl font-bold text-text-primary">{summary?.feed_count ?? '--'}</p>
           <p className="text-[10px] text-text-secondary font-medium">Feeds</p>
@@ -57,12 +52,6 @@ export function SummaryCard({
         <div className="text-center">
           <p className="text-2xl font-bold text-text-primary">{summary?.diaper_count ?? '--'}</p>
           <p className="text-[10px] text-text-secondary font-medium">Diapers</p>
-        </div>
-        <div className="text-center">
-          <p className="text-2xl font-bold text-text-primary">
-            {summary ? `${napHours}h${napMin > 0 ? ` ${napMin}m` : ''}` : '--'}
-          </p>
-          <p className="text-[10px] text-text-secondary font-medium">Nap Time</p>
         </div>
       </div>
 
@@ -100,12 +89,6 @@ export function SummaryCard({
           <span className="text-xs text-text-muted">Last diaper</span>
           <span className="text-xs text-text-secondary font-medium">
             {lastDiaperTimestamp ? formatTimeAgo(lastDiaperTimestamp) : 'None'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-text-muted">Last nap</span>
-          <span className="text-xs text-text-secondary font-medium">
-            {lastNapTimestamp ? formatTimeAgo(lastNapTimestamp) : 'None'}
           </span>
         </div>
       </div>

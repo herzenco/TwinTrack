@@ -12,7 +12,6 @@ interface TwinDaySummary {
   diaperWet: number;
   diaperDirty: number;
   diaperBoth: number;
-  napMinutes: number;
   breastLeft: number;
   breastRight: number;
   breastBoth: number;
@@ -40,9 +39,6 @@ function buildSummary(events: TrackedEvent[], dateFn: (ts: string) => boolean, t
     diaperWet: filtered.filter((e) => e.type === 'diaper' && e.diaper_subtype === 'wet').length,
     diaperDirty: filtered.filter((e) => e.type === 'diaper' && e.diaper_subtype === 'dirty').length,
     diaperBoth: filtered.filter((e) => e.type === 'diaper' && e.diaper_subtype === 'both').length,
-    napMinutes: filtered
-      .filter((e) => e.type === 'nap' && e.duration_ms)
-      .reduce((sum, e) => sum + Math.round((e.duration_ms ?? 0) / 60000), 0),
     breastLeft: filtered.filter((e) => e.type === 'feed' && e.feed_mode === 'breast' && e.feed_side === 'left').length,
     breastRight: filtered.filter((e) => e.type === 'feed' && e.feed_mode === 'breast' && e.feed_side === 'right').length,
     breastBoth: filtered.filter((e) => e.type === 'feed' && e.feed_mode === 'breast' && e.feed_side === 'both').length,
@@ -106,15 +102,9 @@ function TwinDayCard({
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <CompareCell label="Feeds" today={today.feedCount} yesterday={yesterday.feedCount} />
         <CompareCell label="Diapers" today={totalDiapersToday} yesterday={totalDiapersYesterday} />
-        <CompareCell
-          label="Nap"
-          today={today.napMinutes}
-          yesterday={yesterday.napMinutes}
-          suffix="min"
-        />
       </div>
 
       {/* Breast side tracking */}

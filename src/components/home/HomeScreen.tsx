@@ -7,15 +7,19 @@ import { TandemFeedView } from './TandemFeedView';
 import { ActiveNowBar } from './ActiveNowBar';
 import { BottomSheet } from '../shared/BottomSheet';
 import type { TwinLabel, FeedType, FeedSide, FeedSegment, DiaperSubtype, FeedUnit } from '../../types';
-import { fmtOz } from '../../utils/formatters';
+import { DEFAULT_BOTTLE_FEED_TYPE, FEED_AMOUNT_PRESETS, PAST_BREAST_SIDE_OPTIONS } from '../../utils/loggingRules';
+
+function nowLocalStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 export function HomeScreen() {
   const pair = useAppStore((s) => s.activePair);
   const timers = useAppStore((s) => s.activeTimers);
   const events = useAppStore((s) => s.recentEvents);
-  const pumpingSessions = useAppStore((s) => s.pumpingSessions);
 
-  const { logFeed, logDiaper, logNap } = useEvents();
+  const { logFeed, logDiaper } = useEvents();
   const { startTimer, stopTimer, switchSide, togglePause } = useActiveTimers();
 
   const [activeTwin, setActiveTwin] = useState<TwinLabel>('A');
@@ -119,17 +123,6 @@ export function HomeScreen() {
     [logDiaper],
   );
 
-  const handleToggleNap = useCallback(
-    async (twin: TwinLabel) => {
-      try {
-        await startTimer(twin, 'nap');
-      } catch {
-        // Error surfaced via SyncErrorBanner
-      }
-    },
-    [startTimer],
-  );
-
   const handleTogglePause = useCallback(
     async (timerId: string, pause: boolean) => {
       try {
@@ -214,18 +207,6 @@ export function HomeScreen() {
     [logDiaper],
   );
 
-  const handleRetroLogNap = useCallback(
-    async (twin: TwinLabel, napStart: string, napEnd: string) => {
-      try {
-        const durationMs = new Date(napEnd).getTime() - new Date(napStart).getTime();
-        await logNap(twin, napStart, napEnd, durationMs);
-      } catch {
-        // Error surfaced via SyncErrorBanner
-      }
-    },
-    [logNap],
-  );
-
   const handlePrevFeedBothBottle = useCallback(
     async (feedType: FeedType, amount: number, unit: FeedUnit, timestamp: string) => {
       try {
@@ -285,20 +266,6 @@ export function HomeScreen() {
   // Check if either twin already has a feed timer (can't start tandem)
   const anyFeedTimerActive = !!feedTimerA || !!feedTimerB;
 
-  // Pumping & BM balance for today
-  const pumpBmSummary = useMemo(() => {
-    const today = new Date().toDateString();
-    const todayPumps = pumpingSessions.filter((s) => new Date(s.timestamp).toDateString() === today);
-    const pumpedOz = todayPumps.reduce((sum, s) => sum + s.total_oz, 0);
-
-    const todayEvents = events.filter((e) => new Date(e.timestamp).toDateString() === today);
-    const bmBottleFedOz = todayEvents
-      .filter((e) => e.type === 'feed' && e.feed_mode === 'bottle' && e.feed_type === 'breastmilk')
-      .reduce((sum, e) => sum + (e.feed_amount ?? 0), 0);
-
-    return { pumpedOz, bmBottleFedOz, estimatedRemaining: Math.max(0, pumpedOz - bmBottleFedOz) };
-  }, [pumpingSessions, events]);
-
   // Timers for the twin NOT currently shown on mobile
   const otherTwinTimers = timers.filter((t) => t.twin_label !== activeTwin);
 
@@ -354,25 +321,6 @@ export function HomeScreen() {
         onTouchEnd={handleTouchEnd}
       >
         <div className="p-3 flex flex-col gap-3 min-h-full">
-          {/* Breast Milk Today */}
-          <div className="rounded-2xl bg-bg-card/60 border border-white/[0.06] px-4 py-3 flex items-center gap-4">
-            <span className="text-xl">🤱</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1">Breast Milk Today</p>
-              <div className="flex items-center gap-3 text-xs">
-                <span className="text-text-secondary">
-                  Pumped: <span className="font-bold text-text-primary">{fmtOz(pumpBmSummary.pumpedOz)}oz</span>
-                </span>
-                <span className="text-text-secondary">
-                  Fed: <span className="font-bold text-text-primary">{fmtOz(pumpBmSummary.bmBottleFedOz)}oz</span>
-                </span>
-                <span className="text-text-secondary">
-                  Remaining: <span className="font-bold text-success">{fmtOz(pumpBmSummary.estimatedRemaining)}oz</span>
-                </span>
-              </div>
-            </div>
-          </div>
-
           <div className="flex-1 min-h-0">
             <TwinPanel
               label={activeTwin}
@@ -382,14 +330,12 @@ export function HomeScreen() {
               onLogBottle={handleLogBottle}
               onStartBreast={handleStartBreast}
               onLogDiaper={handleLogDiaper}
-              onToggleNap={handleToggleNap}
               onStopTimer={handleStopTimer}
               onSwitchBreast={handleSwitchBreast}
               onTogglePause={handleTogglePause}
               onRetroLogBottle={handleRetroLogBottle}
               onRetroLogBreast={handleRetroLogBreast}
               onRetroLogDiaper={handleRetroLogDiaper}
-              onRetroLogNap={handleRetroLogNap}
             />
           </div>
         </div>
@@ -397,25 +343,6 @@ export function HomeScreen() {
 
       {/* Tablet+: side by side with tandem button */}
       <div className="hidden md:flex flex-col flex-1 min-h-0 p-3 gap-3 overflow-y-auto">
-        {/* Breast Milk Today — tablet */}
-        <div className="rounded-2xl bg-bg-card/60 border border-white/[0.06] px-4 py-3 flex items-center gap-4">
-          <span className="text-xl">🤱</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wide mb-1">Breast Milk Today</p>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="text-text-secondary">
-                Pumped: <span className="font-bold text-text-primary">{fmtOz(pumpBmSummary.pumpedOz)}oz</span>
-              </span>
-              <span className="text-text-secondary">
-                Fed: <span className="font-bold text-text-primary">{fmtOz(pumpBmSummary.bmBottleFedOz)}oz</span>
-              </span>
-              <span className="text-text-secondary">
-                Remaining: <span className="font-bold text-success">{fmtOz(pumpBmSummary.estimatedRemaining)}oz</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
         {!anyFeedTimerActive && (
           <div className="flex gap-3">
             <button
@@ -452,14 +379,12 @@ export function HomeScreen() {
               onLogBottle={handleLogBottle}
               onStartBreast={handleStartBreast}
               onLogDiaper={handleLogDiaper}
-              onToggleNap={handleToggleNap}
               onStopTimer={handleStopTimer}
               onSwitchBreast={handleSwitchBreast}
               onTogglePause={handleTogglePause}
               onRetroLogBottle={handleRetroLogBottle}
               onRetroLogBreast={handleRetroLogBreast}
               onRetroLogDiaper={handleRetroLogDiaper}
-              onRetroLogNap={handleRetroLogNap}
             />
           </div>
           <div className="flex-1 min-h-0">
@@ -471,14 +396,12 @@ export function HomeScreen() {
               onLogBottle={handleLogBottle}
               onStartBreast={handleStartBreast}
               onLogDiaper={handleLogDiaper}
-              onToggleNap={handleToggleNap}
               onStopTimer={handleStopTimer}
               onSwitchBreast={handleSwitchBreast}
               onTogglePause={handleTogglePause}
               onRetroLogBottle={handleRetroLogBottle}
               onRetroLogBreast={handleRetroLogBreast}
               onRetroLogDiaper={handleRetroLogDiaper}
-              onRetroLogNap={handleRetroLogNap}
             />
           </div>
         </div>
@@ -633,7 +556,7 @@ function PreviousFeedBothSheet({
   const [mode, setMode] = useState<'bottle' | 'breast' | null>(null);
 
   // Bottle state
-  const [feedType, setFeedType] = useState<FeedType>('formula');
+  const [feedType, setFeedType] = useState<FeedType>(DEFAULT_BOTTLE_FEED_TYPE);
   const [amount, setAmount] = useState<number>(3);
   const [customAmount, setCustomAmount] = useState('');
   const [showCustom, setShowCustom] = useState(false);
@@ -646,14 +569,9 @@ function PreviousFeedBothSheet({
   // Shared
   const [startTime, setStartTime] = useState(() => nowLocalStr());
 
-  function nowLocalStr() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  }
-
   function resetAndClose() {
     setMode(null);
-    setFeedType('breastmilk');
+    setFeedType(DEFAULT_BOTTLE_FEED_TYPE);
     setAmount(3);
     setCustomAmount('');
     setShowCustom(false);
@@ -681,13 +599,10 @@ function PreviousFeedBothSheet({
     resetAndClose();
   }
 
-  const sides: { value: FeedSide; label: string }[] = [
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' },
-    { value: 'both', label: 'Both' },
-  ];
-
-  const PRESETS = [1, 2, 3, 4, 5, 6];
+  const sides: { value: FeedSide; label: string }[] = PAST_BREAST_SIDE_OPTIONS.map((option) => ({
+    value: option.side,
+    label: option.label,
+  }));
 
   return (
     <BottomSheet open={open} onClose={resetAndClose} title="Previous Feed — Both Twins">
@@ -769,7 +684,7 @@ function PreviousFeedBothSheet({
             <p className="text-sm font-medium text-text-secondary mb-2">Amount (oz)</p>
             {!showCustom ? (
               <div className="grid grid-cols-4 gap-3">
-                {PRESETS.map((a) => (
+                {FEED_AMOUNT_PRESETS.map((a) => (
                   <button
                     key={a}
                     onClick={() => setAmount(a)}
@@ -795,6 +710,7 @@ function PreviousFeedBothSheet({
                 <input
                   type="number"
                   inputMode="decimal"
+                  step="0.5"
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   placeholder="0.0"

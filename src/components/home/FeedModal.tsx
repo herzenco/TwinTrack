@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { BottomSheet } from '../shared/BottomSheet';
 import type { TwinLabel, FeedMode, FeedType, FeedSide } from '../../types';
+import { BREAST_SIDE_OPTIONS, DEFAULT_BOTTLE_FEED_TYPE, FEED_AMOUNT_PRESETS, PAST_BREAST_SIDE_OPTIONS } from '../../utils/loggingRules';
 
 type FeedModalMode = FeedMode | 'previous' | 'prev-bottle' | 'prev-breast' | null;
 
@@ -17,8 +18,6 @@ interface FeedModalProps {
   onRetroLogBreast: (side: FeedSide, startTime: string, endTime: string) => void;
 }
 
-const AMOUNT_PRESETS = [1, 2, 3, 4, 5, 6];
-
 export function FeedModal({
   open,
   onClose,
@@ -31,7 +30,7 @@ export function FeedModal({
   onRetroLogBreast,
 }: FeedModalProps) {
   const [mode, setMode] = useState<FeedModalMode>(null);
-  const [feedType, setFeedType] = useState<FeedType>('formula');
+  const [feedType, setFeedType] = useState<FeedType>(DEFAULT_BOTTLE_FEED_TYPE);
   const [amount, setAmount] = useState<number>(3);
   const [customAmount, setCustomAmount] = useState('');
   const [showCustom, setShowCustom] = useState(false);
@@ -53,7 +52,7 @@ export function FeedModal({
 
   function resetState() {
     setMode(null);
-    setFeedType('breastmilk');
+    setFeedType(DEFAULT_BOTTLE_FEED_TYPE);
     setAmount(3);
     setCustomAmount('');
     setShowCustom(false);
@@ -224,7 +223,7 @@ export function FeedModal({
             <p className="text-sm font-medium text-text-secondary mb-3">Amount (oz)</p>
             {!showCustom ? (
               <div className="grid grid-cols-4 gap-3">
-                {AMOUNT_PRESETS.map((a) => (
+                {FEED_AMOUNT_PRESETS.map((a) => (
                   <button
                     key={a}
                     onClick={() => setAmount(a)}
@@ -251,6 +250,7 @@ export function FeedModal({
                 <input
                   type="number"
                   inputMode="decimal"
+                  step="0.5"
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   placeholder="0.0"
@@ -375,7 +375,7 @@ export function FeedModal({
             <p className="text-sm font-medium text-text-secondary mb-3">Amount (oz)</p>
             {!showCustom ? (
               <div className="grid grid-cols-4 gap-3">
-                {AMOUNT_PRESETS.map((a) => (
+                {FEED_AMOUNT_PRESETS.map((a) => (
                   <button
                     key={a}
                     onClick={() => setAmount(a)}
@@ -402,6 +402,7 @@ export function FeedModal({
                 <input
                   type="number"
                   inputMode="decimal"
+                  step="0.5"
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   placeholder="0.0"
@@ -457,11 +458,7 @@ export function FeedModal({
               )}
             </p>
             <div className="flex gap-3">
-              {([
-                { side: 'left' as FeedSide, label: 'Left' },
-                { side: 'right' as FeedSide, label: 'Right' },
-                { side: 'both' as FeedSide, label: 'Both' },
-              ]).map(({ side, label }) => (
+              {PAST_BREAST_SIDE_OPTIONS.map(({ side, label }) => (
                 <button
                   key={side}
                   onClick={() => setPrevBreastSide(side)}
@@ -577,11 +574,8 @@ export function FeedModal({
             </p>
 
             <div className="flex flex-col gap-3">
-              {([
-                { side: 'left' as FeedSide, label: 'Left', icon: '👈' },
-                { side: 'right' as FeedSide, label: 'Right', icon: '👉' },
-                { side: 'both' as FeedSide, label: 'Both', icon: '🤲' },
-              ]).map(({ side, label, icon }) => {
+              {BREAST_SIDE_OPTIONS.map(({ side, label }) => {
+                const icon = side === 'left' ? '👈' : side === 'right' ? '👉' : '🤲';
                 const isSuggested = side === suggestedSide;
                 return (
                   <button

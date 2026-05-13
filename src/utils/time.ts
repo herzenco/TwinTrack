@@ -1,5 +1,14 @@
+type TimeInput = string | number | Date | null | undefined;
+
+export function getTimeMs(value: TimeInput): number | null {
+  if (value === null || value === undefined) return null;
+  const ms = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
 export function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
+  const safeMs = Number.isFinite(ms) ? Math.max(0, ms) : 0;
+  const totalSeconds = Math.floor(safeMs / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
@@ -10,10 +19,11 @@ export function formatDuration(ms: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function formatTimeAgo(timestamp: string): string {
+export function formatTimeAgo(timestamp: TimeInput): string {
   const now = Date.now();
-  const then = new Date(timestamp).getTime();
-  const diffMs = now - then;
+  const then = getTimeMs(timestamp);
+  if (then === null) return 'unknown';
+  const diffMs = Math.max(0, now - then);
   const diffMin = Math.floor(diffMs / 60000);
 
   if (diffMin < 1) return 'just now';
@@ -23,13 +33,17 @@ export function formatTimeAgo(timestamp: string): string {
   return `${Math.floor(diffHours / 24)}d ago`;
 }
 
-export function formatTime(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString([], {
+export function formatTime(timestamp: TimeInput): string {
+  const ms = getTimeMs(timestamp);
+  if (ms === null) return '--';
+  return new Date(ms).toLocaleTimeString([], {
     hour: 'numeric',
     minute: '2-digit',
   });
 }
 
 export function elapsedMs(startedAt: string): number {
-  return Date.now() - new Date(startedAt).getTime();
+  const startedAtMs = getTimeMs(startedAt);
+  if (startedAtMs === null) return 0;
+  return Math.max(0, Date.now() - startedAtMs);
 }

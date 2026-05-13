@@ -45,7 +45,7 @@ export function ActivityLog({ events, pair, caregivers }: ActivityLogProps) {
     return result;
   }, [events, filterCaregiver, sortDir]);
 
-  function getDetail(event: TrackedEvent): string {
+  const getDetail = useCallback((event: TrackedEvent): string => {
     switch (event.type) {
       case 'feed':
         return formatFeedDetails(event.feed_mode, event.feed_amount, event.feed_unit, event.feed_type, event.feed_side, event.duration_ms);
@@ -56,15 +56,15 @@ export function ActivityLog({ events, pair, caregivers }: ActivityLogProps) {
       default:
         return event.note_text ?? '';
     }
-  }
+  }, []);
 
-  function getTwinColor(label: string): string {
+  const getTwinColor = useCallback((label: string): string => {
     return label === 'A' ? pair.twin_a_color : pair.twin_b_color;
-  }
+  }, [pair.twin_a_color, pair.twin_b_color]);
 
-  function getTwinName(label: string): string {
+  const getTwinName = useCallback((label: string): string => {
     return label === 'A' ? pair.twin_a_name : pair.twin_b_name;
-  }
+  }, [pair.twin_a_name, pair.twin_b_name]);
 
   const handleExportCsv = useCallback(() => {
     const headers = ['Date', 'Time', 'Twin', 'Event', 'Details', 'Duration (min)', 'Side', 'Amount', 'Note', 'Logged By'];
@@ -93,7 +93,7 @@ export function ActivityLog({ events, pair, caregivers }: ActivityLogProps) {
     link.download = `twintrack-activity-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [filtered]);
+  }, [filtered, getDetail, getTwinName]);
 
   const handleSaveEdit = useCallback(async (updated: TrackedEvent) => {
     setEditingEvent(null);

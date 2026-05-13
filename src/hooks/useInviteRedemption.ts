@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from 'react';
-import { useAppStore } from '../store/appStore';
 import { redeemInvite, joinWithFamilyCode } from '../lib/database';
 import { useAuth } from './useAuth';
 
@@ -7,7 +6,6 @@ const PENDING_INVITE_KEY = 'pendingInviteCode';
 
 export function useInviteRedemption() {
   const { user, profile, refreshProfile } = useAuth();
-  const setActivePair = useAppStore((s) => s.setActivePair);
   const [redeeming, setRedeeming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const attemptedRef = useRef(false);
@@ -25,26 +23,29 @@ export function useInviteRedemption() {
       return;
     }
 
-    attemptedRef.current = true;
-    setRedeeming(true);
-    setError(null);
+    void (async () => {
+      attemptedRef.current = true;
+      setRedeeming(true);
+      setError(null);
 
-    const isFamilyCode = /^\d{4}$/.test(code);
-    const joinPromise = isFamilyCode
-      ? joinWithFamilyCode(code, profile.display_name)
-      : redeemInvite(code, profile.display_name);
+      const isFamilyCode = /^\d{4}$/.test(code);
 
-    joinPromise
-      .then(async () => {
+      try {
+        if (isFamilyCode) {
+          await joinWithFamilyCode(code, profile.display_name);
+        } else {
+          await redeemInvite(code, profile.display_name);
+        }
         sessionStorage.removeItem(PENDING_INVITE_KEY);
         await refreshProfile();
-      })
-      .catch((err) => {
+      } catch (err) {
         sessionStorage.removeItem(PENDING_INVITE_KEY);
         setError(err instanceof Error ? err.message : 'Failed to join pair');
-      })
-      .finally(() => setRedeeming(false));
-  }, [user, profile, refreshProfile, setActivePair]);
+      } finally {
+        setRedeeming(false);
+      }
+    })();
+  }, [user, profile, refreshProfile]);
 
   return { redeeming, error };
 }

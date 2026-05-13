@@ -9,16 +9,10 @@ import {
 } from '../../lib/database';
 import { BottomSheet } from '../shared/BottomSheet';
 import type { PumpingSession } from '../../types';
+import { PUMPING_OZ_PRESETS, getPumpingStartedAt } from '../../utils/loggingRules';
 
-const OZ_PRESETS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6];
-
-function nowLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
+function toLocalInput(value: string | Date): string {
+  const d = value instanceof Date ? value : new Date(value);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
@@ -50,6 +44,13 @@ export function PumpingView() {
   const [editingSession, setEditingSession] = useState<PumpingSession | null>(null);
 
   const totalOz = leftOz + rightOz;
+  const displayedTimestamp = timestamp || toLocalInput(getPumpingStartedAt(durationMin));
+
+  function updateDuration(nextDurationMin: number) {
+    setDurationMin(nextDurationMin);
+    setTimestamp(toLocalInput(getPumpingStartedAt(nextDurationMin)));
+    setShowFutureConfirm(false);
+  }
 
   function isFutureTime(timeStr: string): boolean {
     if (!timeStr) return false;
@@ -66,7 +67,7 @@ export function PumpingView() {
 
     setSaving(true);
     try {
-      const ts = timestamp ? new Date(timestamp).toISOString() : undefined;
+      const ts = new Date(displayedTimestamp).toISOString();
       const session = await createPumpingSession({
         pair_id: pair.id,
         timestamp: ts,
@@ -90,7 +91,7 @@ export function PumpingView() {
     } finally {
       setSaving(false);
     }
-  }, [pair, user, profile, durationMin, leftOz, rightOz, timestamp, note, totalOz, showFutureConfirm, addPumpingSession, setSyncError]);
+  }, [pair, user, profile, durationMin, leftOz, rightOz, timestamp, displayedTimestamp, note, totalOz, showFutureConfirm, addPumpingSession, setSyncError]);
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -280,7 +281,7 @@ export function PumpingView() {
             {[5, 10, 15, 20, 25, 30].map((m) => (
               <button
                 key={`D${m}`}
-                onClick={() => setDurationMin(m)}
+                onClick={() => updateDuration(m)}
                 className={`min-w-[48px] min-h-[44px] rounded-xl text-sm font-bold transition-all active:scale-95
                   ${durationMin === m
                     ? 'bg-twin-a text-[#0F1117]'
@@ -294,7 +295,7 @@ export function PumpingView() {
               type="number"
               inputMode="numeric"
               value={durationMin || ''}
-              onChange={(e) => setDurationMin(parseInt(e.target.value) || 0)}
+              onChange={(e) => updateDuration(parseInt(e.target.value) || 0)}
               placeholder="Custom"
               className="min-w-[72px] min-h-[44px] px-3 rounded-xl bg-white/5 text-text-primary text-sm text-center
                          border border-white/10 focus:outline-none focus:border-white/20
@@ -307,7 +308,7 @@ export function PumpingView() {
         <div>
           <p className="text-xs text-text-muted mb-2">Left breast (oz)</p>
           <div className="flex flex-wrap gap-2">
-            {OZ_PRESETS.map((oz) => (
+            {PUMPING_OZ_PRESETS.map((oz) => (
               <button
                 key={`L${oz}`}
                 onClick={() => setLeftOz(oz)}
@@ -327,7 +328,7 @@ export function PumpingView() {
         <div>
           <p className="text-xs text-text-muted mb-2">Right breast (oz)</p>
           <div className="flex flex-wrap gap-2">
-            {OZ_PRESETS.map((oz) => (
+            {PUMPING_OZ_PRESETS.map((oz) => (
               <button
                 key={`R${oz}`}
                 onClick={() => setRightOz(oz)}
@@ -354,7 +355,7 @@ export function PumpingView() {
           <p className="text-xs text-text-muted mb-2">Time</p>
           <input
             type="datetime-local"
-            value={timestamp || nowLocal()}
+            value={displayedTimestamp}
             onChange={(e) => { setTimestamp(e.target.value); setShowFutureConfirm(false); }}
             className="w-full min-h-[48px] px-4 rounded-xl bg-white/5 text-text-primary text-sm
                        border border-white/10 focus:outline-none focus:border-white/20 [color-scheme:dark]"
@@ -535,6 +536,7 @@ function EditPumpingSheet({
           <input
             type="number"
             inputMode="decimal"
+            step="0.5"
             value={leftOz}
             onChange={(e) => setLeftOz(parseFloat(e.target.value) || 0)}
             className={inputClass}
@@ -547,6 +549,7 @@ function EditPumpingSheet({
           <input
             type="number"
             inputMode="decimal"
+            step="0.5"
             value={rightOz}
             onChange={(e) => setRightOz(parseFloat(e.target.value) || 0)}
             className={inputClass}

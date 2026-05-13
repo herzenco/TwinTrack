@@ -26,3 +26,4 @@ dist-ssr
 .claude/
 supabase/.temp/
 backups/
+.Codex/backups/

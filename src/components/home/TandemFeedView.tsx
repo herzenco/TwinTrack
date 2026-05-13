@@ -50,10 +50,6 @@ function TandemTimer({
   const [elapsed, setElapsed] = useState(() => getActiveElapsed(timer));
 
   useEffect(() => {
-    if (timer.is_paused) {
-      setElapsed(getActiveElapsed(timer));
-      return;
-    }
     const interval = setInterval(() => {
       setElapsed(getActiveElapsed(timer));
     }, 1000);
